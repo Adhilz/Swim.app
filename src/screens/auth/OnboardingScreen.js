@@ -15,6 +15,7 @@ import {
     StatusBar,
     Animated,
     FlatList,
+    Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -146,9 +147,7 @@ const OnboardingScreen = ({ navigation }) => {
                     <View style={{ flex: 1 }}>
                         {/* App Logo */}
                         <View style={styles.logoRow}>
-                            <LinearGradient colors={Colors.primaryGradient} style={styles.logoIcon}>
-                                <Ionicons name="flash" size={20} color={Colors.white} />
-                            </LinearGradient>
+                            <Image source={require('../../../assets/logo.png')} style={styles.logoImage} />
                             <Text style={styles.logoText}>Swim.ai</Text>
                         </View>
 
@@ -198,9 +197,7 @@ const OnboardingScreen = ({ navigation }) => {
                         </TouchableOpacity>
 
                         <View style={styles.authHeader}>
-                            <LinearGradient colors={Colors.primaryGradient} style={styles.authIcon}>
-                                <Ionicons name="flash" size={32} color={Colors.white} />
-                            </LinearGradient>
+                            <Image source={require('../../../assets/logo.png')} style={styles.authLogo} />
                             <Text style={styles.authTitle}>Enter your{'\n'}mobile number</Text>
                             <Text style={styles.authSubtitle}>We'll send a 4-digit OTP to verify your number</Text>
                         </View>
@@ -317,6 +314,7 @@ const styles = StyleSheet.create({
         marginTop: Spacing.sm,
     },
     logoIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    logoImage: { width: 44, height: 44, borderRadius: 12 },
     logoText: { ...Typography.h3, color: Colors.textPrimary },
 
     // Slide
@@ -390,6 +388,12 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius['2xl'],
         alignItems: 'center',
         justifyContent: 'center',
+        marginBottom: Spacing.xl,
+    },
+    authLogo: {
+        width: 100,
+        height: 100,
+        borderRadius: 25,
         marginBottom: Spacing.xl,
     },
     otpIconContainer: {
