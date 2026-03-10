@@ -1,74 +1,78 @@
 // ─────────────────────────────────────────────
-//  Component: CategoryPill
+//  Component: CategoryPill (Swim.ai Premium)
 // ─────────────────────────────────────────────
-import React, { useRef } from 'react';
+import React from 'react';
 import {
     View,
     Text,
     TouchableOpacity,
     StyleSheet,
-    Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 
 const CategoryPill = ({ category, isSelected, onPress }) => {
-    const scaleAnim = useRef(new Animated.Value(1)).current;
-
-    const handlePress = () => {
-        Animated.sequence([
-            Animated.timing(scaleAnim, { toValue: 0.9, duration: 100, useNativeDriver: true }),
-            Animated.timing(scaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
-        ]).start(() => onPress(category));
-    };
-
     return (
-        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-            <TouchableOpacity onPress={handlePress} activeOpacity={1} style={styles.wrapper}>
-                <LinearGradient
-                    colors={isSelected ? category.gradient : ['transparent', 'transparent']}
-                    style={[
-                        styles.iconContainer,
-                        !isSelected && { borderWidth: 1.5, borderColor: Colors.border },
-                    ]}
-                >
-                    <Ionicons
-                        name={category.icon}
-                        size={24}
-                        color={isSelected ? Colors.white : category.color}
+        <TouchableOpacity
+            onPress={() => onPress(category)}
+            activeOpacity={0.8}
+            style={styles.wrapper}
+        >
+            <View
+                style={[
+                    styles.iconContainer,
+                    isSelected && { borderColor: category.color, backgroundColor: `${category.color}15` }
+                ]}
+            >
+                {isSelected && (
+                    <LinearGradient
+                        colors={category.gradient}
+                        style={StyleSheet.absoluteFill}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
                     />
-                </LinearGradient>
-                <Text
-                    style={[
-                        styles.label,
-                        { color: isSelected ? category.color : Colors.textSecondary },
-                    ]}
-                >
-                    {category.name}
-                </Text>
-            </TouchableOpacity>
-        </Animated.View>
+                )}
+                <Ionicons
+                    name={category.icon}
+                    size={28}
+                    color={isSelected ? Colors.white : Colors.textSecondary}
+                />
+            </View>
+            <Text
+                style={[
+                    styles.label,
+                    { color: isSelected ? Colors.white : Colors.textMuted },
+                    isSelected && { fontWeight: '700' }
+                ]}
+            >
+                {category.name}
+            </Text>
+        </TouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
     wrapper: {
         alignItems: 'center',
-        marginRight: Spacing.base,
-        width: 64,
+        marginRight: Spacing.xl,
     },
     iconContainer: {
-        width: 60,
-        height: 60,
-        borderRadius: BorderRadius.xl,
+        width: 72,
+        height: 72,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: Spacing.xs,
+        marginBottom: 8,
+        backgroundColor: Colors.surface,
+        borderWidth: 1.5,
+        borderColor: Colors.glassBorder,
+        overflow: 'hidden',
     },
     label: {
         ...Typography.labelSmall,
         textAlign: 'center',
+        fontSize: 12,
     },
 });
 

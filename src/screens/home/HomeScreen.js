@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
-//  Screen: Home
+//  Screen: Home (Swim.ai Premium Edition)
 // ─────────────────────────────────────────────
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,319 +10,309 @@ import {
     TouchableOpacity,
     FlatList,
     StatusBar,
-    TextInput,
+    Image,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
 import CategoryPill from '../../components/home/CategoryPill';
-import PromoBanner from '../../components/home/PromoBanner';
 import StoreCard from '../../components/store/StoreCard';
-import { SERVICE_CATEGORIES, MOCK_STORES } from '../../data/mockData';
+import FeaturedStoreCard from '../../components/store/FeaturedStoreCard';
+import { SERVICE_CATEGORIES, MOCK_STORES, MOCK_BANNERS } from '../../data/mockData';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 
+const { width: W } = Dimensions.get('window');
+
 const HomeScreen = ({ navigation }) => {
     const [selectedCategory, setSelectedCategory] = useState('food');
-    const [searchQuery, setSearchQuery] = useState('');
     const user = useAuthStore(s => s.user);
     const selectedAddress = useAuthStore(s => s.selectedAddress);
     const totalItems = useCartStore(s => s.getTotalItems());
 
-    const filteredStores = MOCK_STORES.filter(
-        s => !selectedCategory || s.category === selectedCategory
-    );
-
-    const greeting = () => {
-        const h = new Date().getHours();
-        if (h < 12) return 'Good morning';
-        if (h < 17) return 'Good afternoon';
-        return 'Good evening';
-    };
+    const featuredStores = MOCK_STORES.filter(s => s.isFeatured);
+    const regularStores = MOCK_STORES.filter(s => !selectedCategory || s.category === selectedCategory);
 
     return (
-        <SafeAreaView style={styles.safe} edges={['top']}>
-            <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <View style={styles.root}>
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
             {/* ── Header ── */}
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.locationRow}
-                    onPress={() => navigation.navigate('AddressSelect')}
-                    activeOpacity={0.8}
-                >
-                    <Ionicons name="location" size={18} color={Colors.primary} />
-                    <View style={styles.locationText}>
-                        <Text style={styles.locationLabel}>Delivering to</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Text style={styles.locationAddress} numberOfLines={1}>
-                                {selectedAddress?.addressLine1 || 'Select Location'}
-                            </Text>
-                            <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} />
-                        </View>
-                    </View>
-                </TouchableOpacity>
-
-                <View style={styles.headerRight}>
+            <SafeAreaView style={styles.header} edges={['top']}>
+                <View style={styles.headerContent}>
                     <TouchableOpacity
-                        style={styles.iconBtn}
-                        onPress={() => navigation.navigate('Notifications')}
+                        style={styles.locationContainer}
+                        onPress={() => navigation.navigate('AddressSelect')}
                     >
-                        <Ionicons name="notifications-outline" size={22} color={Colors.textPrimary} />
-                        <View style={styles.notifDot} />
+                        <Ionicons name="location" size={18} color={Colors.primary} />
+                        <View style={styles.locationText}>
+                            <Text style={styles.locationTitle}>Marine Drive, Kochi</Text>
+                            <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
+                        </View>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-                        <LinearGradient
-                            colors={Colors.primaryGradient}
+
+                    <TouchableOpacity
+                        style={styles.profileBtn}
+                        onPress={() => navigation.navigate('Profile')}
+                    >
+                        <Image
+                            source={{ uri: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100' }}
                             style={styles.avatar}
-                        >
-                            <Text style={styles.avatarText}>
-                                {user?.name?.charAt(0) || 'U'}
-                            </Text>
-                        </LinearGradient>
+                        />
                     </TouchableOpacity>
                 </View>
-            </View>
+            </SafeAreaView>
 
-            {/* ── Main Scroll ── */}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
             >
-                {/* Greeting */}
-                <View style={styles.greetingRow}>
-                    <View>
-                        <Text style={styles.greeting}>{greeting()}, {user?.name?.split(' ')[0] || 'there'}! 👋</Text>
-                        <Text style={styles.greetingSub}>What would you like to order?</Text>
-                    </View>
+                {/* ── Hero Search Section ── */}
+                <View style={styles.heroSection}>
+                    <Text style={styles.heroTitle}>Discover the Best of{'\n'}Ernakulam</Text>
+
+                    <TouchableOpacity
+                        style={styles.searchBar}
+                        onPress={() => navigation.navigate('Search')}
+                    >
+                        <Ionicons name="search" size={20} color={Colors.textSecondary} />
+                        <Text style={styles.searchPlaceholder}>Search stores or dishes...</Text>
+                        <View style={styles.searchCommand}>
+                            <Text style={styles.commandText}>⌘K</Text>
+                        </View>
+                    </TouchableOpacity>
                 </View>
 
-                {/* ── Search Bar ── */}
-                <TouchableOpacity
-                    style={styles.searchBar}
-                    onPress={() => navigation.navigate('Search')}
-                    activeOpacity={0.9}
-                >
-                    <Ionicons name="search" size={20} color={Colors.textMuted} />
-                    <Text style={styles.searchPlaceholder}>Search for food, stores, products...</Text>
-                    <View style={styles.filterBtn}>
-                        <Ionicons name="options-outline" size={16} color={Colors.primary} />
-                    </View>
-                </TouchableOpacity>
+                {/* ── Modern Category Pills ── */}
+                <FlatList
+                    data={SERVICE_CATEGORIES}
+                    renderItem={({ item }) => (
+                        <CategoryPill
+                            category={item}
+                            isSelected={selectedCategory === item.id}
+                            onPress={(cat) => setSelectedCategory(cat.id)}
+                        />
+                    )}
+                    keyExtractor={i => i.id}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoriesRow}
+                />
 
-                {/* ── Service Categories ── */}
+                {/* ── Featured Section (The "Eye Catching" Part) ── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Services</Text>
+                        <Text style={styles.sectionTitle}>Legendary Stores</Text>
+                        <TouchableOpacity>
+                            <Text style={styles.seeAll}>View All</Text>
+                        </TouchableOpacity>
                     </View>
                     <FlatList
-                        data={SERVICE_CATEGORIES}
+                        data={featuredStores}
                         renderItem={({ item }) => (
-                            <CategoryPill
-                                category={item}
-                                isSelected={selectedCategory === item.id}
-                                onPress={(cat) => setSelectedCategory(cat.id)}
+                            <FeaturedStoreCard
+                                store={item}
+                                onPress={() => navigation.navigate('StoreDetail', { storeId: item.id })}
                             />
                         )}
                         keyExtractor={i => i.id}
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.categoriesRow}
+                        contentContainerStyle={styles.featuredList}
+                        snapToInterval={W * 0.75 + Spacing.base}
+                        decelerationRate="fast"
                     />
                 </View>
 
-                {/* ── Promo Banners ── */}
-                <View style={styles.section}>
-                    <PromoBanner
-                        onPress={(banner) =>
-                            setSelectedCategory(banner.category)
-                        }
+                {/* ── Promo Banner ── */}
+                <View style={styles.promoSection}>
+                    <Image
+                        source={{ uri: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800' }}
+                        style={styles.promoImage}
                     />
+                    <LinearGradient
+                        colors={['transparent', 'rgba(1,4,9,0.8)']}
+                        style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.promoContent}>
+                        <Text style={styles.promoTitle}>Culinary Experience</Text>
+                        <Text style={styles.promoSubtitle}>Explore Lulu Mall's Finest</Text>
+                    </View>
                 </View>
 
-                {/* ── Popular Stores ── */}
+                {/* ── Regular Stores ── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>
-                            {SERVICE_CATEGORIES.find(c => c.id === selectedCategory)?.name || 'Popular'} Near You
-                        </Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('StoreList', { category: selectedCategory })}>
-                            <Text style={styles.seeAll}>See All</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.sectionTitle}>Around Panampilly Nagar</Text>
                     </View>
-
-                    {filteredStores.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="sad-outline" size={48} color={Colors.textMuted} />
-                            <Text style={styles.emptyText}>No stores available in this category</Text>
-                        </View>
-                    ) : (
-                        filteredStores.map(store => (
-                            <StoreCard
-                                key={store.id}
-                                store={store}
-                                onPress={() => navigation.navigate('StoreDetail', { storeId: store.id })}
-                                style={styles.storeCard}
-                            />
-                        ))
-                    )}
-                </View>
-
-                {/* ── Quick Reorder ── */}
-                <View style={[styles.section, styles.reorderCard]}>
-                    <LinearGradient
-                        colors={['rgba(244,123,37,0.15)', 'rgba(244,123,37,0.05)']}
-                        style={styles.reorderGradient}
-                    >
-                        <View style={styles.reorderContent}>
-                            <Ionicons name="refresh" size={28} color={Colors.primary} />
-                            <View style={{ flex: 1, marginLeft: Spacing.base }}>
-                                <Text style={styles.reorderTitle}>Quick Reorder</Text>
-                                <Text style={styles.reorderSubtitle}>Butter Chicken + Garlic Naan from Spice Garden</Text>
-                            </View>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.reorderBtn}
-                            onPress={() => navigation.navigate('OrderHistory')}
-                        >
-                            <Text style={styles.reorderBtnText}>Reorder</Text>
-                        </TouchableOpacity>
-                    </LinearGradient>
+                    {regularStores.map(store => (
+                        <StoreCard
+                            key={store.id}
+                            store={store}
+                            onPress={() => navigation.navigate('StoreDetail', { storeId: store.id })}
+                            style={styles.storeCard}
+                        />
+                    ))}
                 </View>
             </ScrollView>
 
-            {/* ── Cart FAB ── */}
+            {/* ── Bottom Cart Bar ── */}
             {totalItems > 0 && (
                 <TouchableOpacity
-                    style={styles.cartFab}
-                    onPress={() => navigation.navigate('Main', { screen: 'Cart' })}
+                    style={styles.cartBar}
+                    onPress={() => navigation.navigate('Cart')}
                 >
-                    <LinearGradient colors={Colors.primaryGradient} style={styles.cartFabGradient}>
-                        <Ionicons name="cart" size={24} color={Colors.white} />
-                        <Text style={styles.cartFabText}>{totalItems}</Text>
+                    <LinearGradient colors={['#0096C7', '#023E8A']} style={styles.cartGradient}>
+                        <View style={styles.cartInfo}>
+                            <Text style={styles.cartCount}>{totalItems} items</Text>
+                            <Text style={styles.cartSub}>Swim.ai Checkout</Text>
+                        </View>
+                        <View style={styles.cartAction}>
+                            <Text style={styles.cartActionText}>View Cart</Text>
+                            <Ionicons name="cart" size={18} color={Colors.white} />
+                        </View>
                     </LinearGradient>
                 </TouchableOpacity>
             )}
-        </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: Colors.background },
+    root: { flex: 1, backgroundColor: Colors.background },
 
     header: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        backgroundColor: 'rgba(1,4,9,0.8)',
+    },
+    headerContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: Spacing.base,
-        paddingVertical: Spacing.sm,
+        paddingBottom: Spacing.sm,
     },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
-    locationText: { flex: 1 },
-    locationLabel: { ...Typography.caption, color: Colors.textMuted },
-    locationAddress: {
-        ...Typography.labelLarge,
-        color: Colors.textPrimary,
-        maxWidth: 200,
-    },
-    headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-    iconBtn: { position: 'relative', padding: 4 },
-    notifDot: {
-        position: 'absolute',
-        top: 4,
-        right: 4,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: Colors.error,
-        borderWidth: 1.5,
-        borderColor: Colors.background,
-    },
-    avatar: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
+    locationContainer: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: Colors.glass,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: BorderRadius.full,
+        borderWidth: 1,
+        borderColor: Colors.glassBorder,
     },
-    avatarText: { ...Typography.labelLarge, color: Colors.white },
+    locationText: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    locationTitle: { ...Typography.labelLarge, color: Colors.white },
+    profileBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: Colors.primary,
+        overflow: 'hidden',
+    },
+    avatar: { width: '100%', height: '100%' },
 
-    greetingRow: {
+    scrollContent: { paddingTop: 100, paddingBottom: 120 },
+
+    heroSection: {
         paddingHorizontal: Spacing.base,
-        paddingVertical: Spacing.sm,
+        paddingVertical: Spacing.xl,
     },
-    greeting: { ...Typography.h3, color: Colors.textPrimary },
-    greetingSub: { ...Typography.bodyMedium, color: Colors.textSecondary, marginTop: 2 },
-
+    heroTitle: {
+        ...Typography.h1,
+        color: Colors.white,
+        fontSize: 32,
+        lineHeight: 38,
+    },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.surface,
         borderRadius: BorderRadius.xl,
-        marginHorizontal: Spacing.base,
-        padding: Spacing.md,
-        gap: Spacing.sm,
+        marginTop: Spacing.xl,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: Colors.glassBorder,
+    },
+    searchPlaceholder: { ...Typography.bodyMedium, color: Colors.textSecondary, flex: 1 },
+    searchCommand: {
+        backgroundColor: Colors.card,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
         borderWidth: 1,
         borderColor: Colors.border,
-        marginBottom: Spacing.sm,
     },
-    searchPlaceholder: { ...Typography.bodyMedium, color: Colors.textMuted, flex: 1 },
-    filterBtn: {
-        width: 32,
-        height: 32,
-        backgroundColor: `${Colors.primary}20`,
-        borderRadius: BorderRadius.md,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    commandText: { ...Typography.caption, color: Colors.textMuted },
 
-    scrollContent: { paddingBottom: 100 },
-    section: { marginBottom: Spacing.xl },
+    categoriesRow: { paddingHorizontal: Spacing.base, marginBottom: Spacing.xl },
+
+    section: { marginBottom: Spacing['3xl'] },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: Spacing.base,
-        marginBottom: Spacing.sm,
+        marginBottom: Spacing.lg,
     },
-    sectionTitle: { ...Typography.h4, color: Colors.textPrimary },
-    seeAll: { ...Typography.labelMedium, color: Colors.primary },
-    categoriesRow: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.xs },
-    storeCard: { marginHorizontal: Spacing.base, marginBottom: Spacing.md },
+    sectionTitle: { ...Typography.h3, color: Colors.white },
+    seeAll: { ...Typography.labelMedium, color: Colors.primaryLight },
 
-    emptyState: { alignItems: 'center', padding: Spacing['2xl'], gap: Spacing.sm },
-    emptyText: { ...Typography.bodyMedium, color: Colors.textMuted, textAlign: 'center' },
+    featuredList: { paddingHorizontal: Spacing.base },
 
-    reorderCard: { marginHorizontal: Spacing.base },
-    reorderGradient: { borderRadius: BorderRadius.xl, padding: Spacing.base },
-    reorderContent: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
-    reorderTitle: { ...Typography.labelLarge, color: Colors.textPrimary },
-    reorderSubtitle: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
-    reorderBtn: {
-        backgroundColor: Colors.primary,
-        borderRadius: BorderRadius.md,
-        paddingVertical: Spacing.sm,
-        paddingHorizontal: Spacing.base,
-        alignSelf: 'flex-end',
+    promoSection: {
+        marginHorizontal: Spacing.base,
+        height: 180,
+        borderRadius: BorderRadius['3xl'],
+        overflow: 'hidden',
+        marginBottom: Spacing['3xl'],
     },
-    reorderBtnText: { ...Typography.labelMedium, color: Colors.white },
-
-    cartFab: {
+    promoImage: { width: '100%', height: '100%' },
+    promoContent: {
         position: 'absolute',
-        bottom: Spacing['2xl'],
+        bottom: Spacing.xl,
+        left: Spacing.xl,
+    },
+    promoTitle: { ...Typography.h4, color: Colors.white },
+    promoSubtitle: { ...Typography.bodyMedium, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+
+    storeCard: { marginHorizontal: Spacing.base, marginBottom: Spacing.lg },
+
+    cartBar: {
+        position: 'absolute',
+        bottom: Spacing.xl,
+        left: Spacing.base,
         right: Spacing.base,
+        borderRadius: BorderRadius['2xl'],
+        overflow: 'hidden',
         ...Shadows.primary,
     },
-    cartFabGradient: {
+    cartGradient: {
+        padding: Spacing.base,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: Spacing.sm,
-        borderRadius: BorderRadius['2xl'],
-        paddingHorizontal: Spacing.base,
-        paddingVertical: Spacing.sm,
+        justifyContent: 'space-between',
     },
-    cartFabText: { ...Typography.labelLarge, color: Colors.white },
+    cartInfo: { flex: 1 },
+    cartCount: { ...Typography.labelLarge, color: Colors.white },
+    cartSub: { ...Typography.caption, color: 'rgba(255,255,255,0.7)' },
+    cartAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    cartActionText: { ...Typography.labelLarge, color: Colors.white },
 });
 
 export default HomeScreen;
