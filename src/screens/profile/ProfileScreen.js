@@ -24,7 +24,7 @@ const MENU_SECTIONS = [
         title: 'Orders & Wallet',
         items: [
             { id: 'orders', label: 'My Orders', icon: 'receipt-outline', badge: '2', route: 'OrderHistory' },
-            { id: 'wallet', label: 'QuickCart Wallet', icon: 'wallet-outline', value: '₹120', route: 'Wallet' },
+            { id: 'wallet', label: 'Swim.ai Wallet', icon: 'wallet-outline', value: '₹120', route: 'Wallet' },
             { id: 'coupons', label: 'Offers & Coupons', icon: 'pricetag-outline', badge: 'NEW', route: 'Coupons' },
         ],
     },
@@ -41,7 +41,7 @@ const MENU_SECTIONS = [
         items: [
             { id: 'help', label: 'Help & Support', icon: 'help-circle-outline', route: 'Support' },
             { id: 'rate', label: 'Rate the App', icon: 'star-outline', route: null },
-            { id: 'about', label: 'About QuickCart', icon: 'information-circle-outline', route: null },
+            { id: 'about', label: 'About Swim.ai', icon: 'information-circle-outline', route: null },
         ],
     },
 ];

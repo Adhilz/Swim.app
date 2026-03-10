@@ -25,7 +25,7 @@ import { MOCK_ADDRESSES } from '../../data/mockData';
 const PAYMENT_METHODS = [
     { id: 'upi', name: 'UPI', icon: 'phone-portrait', desc: 'Pay via any UPI app' },
     { id: 'card', name: 'Card', icon: 'card', desc: 'Credit / Debit Card' },
-    { id: 'wallet', name: 'Wallet', icon: 'wallet', desc: 'QuickCart Wallet • ₹120' },
+    { id: 'wallet', name: 'Wallet', icon: 'wallet', desc: 'Swim.ai Wallet • ₹120' },
     { id: 'cod', name: 'Cash', icon: 'cash', desc: 'Pay on Delivery' },
 ];
 

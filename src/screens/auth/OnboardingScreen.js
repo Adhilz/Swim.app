@@ -149,7 +149,7 @@ const OnboardingScreen = ({ navigation }) => {
                             <LinearGradient colors={Colors.primaryGradient} style={styles.logoIcon}>
                                 <Ionicons name="flash" size={20} color={Colors.white} />
                             </LinearGradient>
-                            <Text style={styles.logoText}>QuickCart</Text>
+                            <Text style={styles.logoText}>Swim.ai</Text>
                         </View>
 
                         <FlatList
