@@ -12,42 +12,60 @@ import {
     FlatList,
     StatusBar,
     Animated,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 import StoreCard from '../../components/store/StoreCard';
-import { MOCK_STORES, SERVICE_CATEGORIES } from '../../data/mockData';
+import ProductCard from '../../components/product/ProductCard';
+import { useDataStore } from '../../store/dataStore';
+import {
+    SERVICE_CATEGORIES,
+    SORT_OPTIONS,
+} from '../../data/mockData';
 
-const RECENT_SEARCHES = ['Butter Chicken', 'Groceries', 'Paracetamol', 'Pizza'];
-const TRENDING = ['Biryani 🍛', 'Sushi 🍣', 'Protein Shakes 💪', 'Organic Veggies 🥦', 'iPhone Cases 📱'];
-const SORT_OPTIONS = ['Relevance', 'Rating', 'Delivery Time', 'Price (Low to High)'];
-
+const { width: W } = Dimensions.get('window');
 const SearchScreen = ({ navigation }) => {
     const [query, setQuery] = useState('');
-    const [results, setResults] = useState([]);
+    const [recentSearches, setRecentSearches] = useState(['Biryani', 'Meals', 'Kerala Sari']);
+    const [trendingSearches] = useState(['Fresh Produce', 'Pharmacy', 'Sweets']);
+    const [searchResults, setSearchResults] = useState([]);
     const [showFilters, setShowFilters] = useState(false);
-    const [selectedSort, setSelectedSort] = useState('Relevance');
+    const [selectedSort, setSelectedSort] = useState(SORT_OPTIONS[0]);
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [minRating, setMinRating] = useState(0);
     const inputRef = useRef(null);
     const filterSlide = useRef(new Animated.Value(0)).current;
 
+    const { stores } = useDataStore();
+
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
 
+    // Debounced search logic
+    useEffect(() => {
+        if (!query.trim()) {
+            setSearchResults([]);
+            return;
+        }
+        const timer = setTimeout(() => {
+            const lowerQuery = query.toLowerCase();
+            const results = stores.filter(
+                s =>
+                    s.name.toLowerCase().includes(lowerQuery) ||
+                    s.cuisine.toLowerCase().includes(lowerQuery) ||
+                    (s.tags && s.tags.some(t => t.toLowerCase().includes(lowerQuery)))
+            );
+            setSearchResults(results);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [query, stores]);
+
     const handleSearch = (text) => {
         setQuery(text);
-        if (text.length > 1) {
-            const filtered = MOCK_STORES.filter(s =>
-                s.name.toLowerCase().includes(text.toLowerCase()) ||
-                s.cuisine.toLowerCase().includes(text.toLowerCase())
-            );
-            setResults(filtered);
-        } else {
-            setResults([]);
-        }
     };
 
     const toggleCategory = (catId) => {
@@ -96,7 +114,7 @@ const SearchScreen = ({ navigation }) => {
                         selectionColor={Colors.primary}
                     />
                     {query.length > 0 && (
-                        <TouchableOpacity onPress={() => { setQuery(''); setResults([]); }}>
+                        <TouchableOpacity onPress={() => { setQuery(''); setSearchResults([]); }}>
                             <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
                         </TouchableOpacity>
                     )}
@@ -131,7 +149,7 @@ const SearchScreen = ({ navigation }) => {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Trending Near You 🔥</Text>
                         <View style={styles.chipsRow}>
-                            {TRENDING.map(t => (
+                            {TRENDING_SEARCHES.map(t => (
                                 <TouchableOpacity key={t} style={[styles.chip, styles.trendingChip]} onPress={() => handleSearch(t)}>
                                     <Text style={styles.trendingChipText}>{t}</Text>
                                 </TouchableOpacity>
@@ -161,12 +179,12 @@ const SearchScreen = ({ navigation }) => {
                 </ScrollView>
             ) : (
                 <FlatList
-                    data={results}
-                    keyExtractor={i => i.id}
+                    data={searchResults}
+                    keyExtractor={s => s.id}
                     contentContainerStyle={styles.resultsList}
                     ListHeaderComponent={
                         <Text style={styles.resultsHeader}>
-                            {results.length} result{results.length !== 1 ? 's' : ''} for "{query}"
+                            {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{query}"
                         </Text>
                     }
                     ListEmptyComponent={
@@ -195,7 +213,7 @@ const SearchScreen = ({ navigation }) => {
                         <View style={styles.sheetHandle} />
                         <View style={styles.sheetHeader}>
                             <Text style={styles.sheetTitle}>Filters</Text>
-                            <TouchableOpacity onPress={() => { setSelectedCategories([]); setMinRating(0); setSelectedSort('Relevance'); }}>
+                            <TouchableOpacity onPress={() => { setSelectedCategories([]); setMinRating(0); setSelectedSort(SORT_OPTIONS[0]); }}>
                                 <Text style={styles.resetText}>Reset All</Text>
                             </TouchableOpacity>
                         </View>

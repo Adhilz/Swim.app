@@ -2,6 +2,7 @@
 //  Zustand Store – Cart
 // ─────────────────────────────────────────────
 import { create } from 'zustand';
+import { PROMO_CODES } from '../data/mockData';
 
 export const useCartStore = create((set, get) => ({
     items: [],
@@ -96,11 +97,6 @@ export const useCartStore = create((set, get) => ({
     },
 
     applyPromo: (code) => {
-        const validCodes = {
-            FIRST50: { discount: 0.5, maxDiscount: 100 },
-            SAVE20: { discount: 0.2, maxDiscount: 60 },
-            FREE: { discount: 0, maxDiscount: 0, freeDelivery: true },
-        };
-        return validCodes[code.toUpperCase()] || null;
+        return PROMO_CODES[code.toUpperCase()] || null;
     },
 }));

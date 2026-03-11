@@ -2,6 +2,7 @@
 //  Zustand Store – Auth
 // ─────────────────────────────────────────────
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 export const useAuthStore = create((set, get) => ({
     user: null,
@@ -13,26 +14,50 @@ export const useAuthStore = create((set, get) => ({
 
     setUser: (user) => set({ user, isAuthenticated: !!user }),
 
-    login: async (phone, otp) => {
+    sendOtp: async (phone) => {
         set({ isLoading: true });
-        // Simulate API call
-        await new Promise(r => setTimeout(r, 1500));
-        const mockUser = {
-            id: 'u1',
-            name: 'Adhil Khan',
-            phone,
-            email: 'adhil@example.com',
-            avatar: null,
-            loyaltyPoints: 450,
-            totalOrders: 23,
-        };
-        set({
-            user: mockUser,
-            isAuthenticated: true,
-            isLoading: false,
-            token: 'mock_jwt_token_abc123',
+        const { data, error } = await supabase.auth.signInWithOtp({
+            phone: `+91${phone}`
         });
+        set({ isLoading: false });
+        if (error) {
+            console.error('OTP Send Error:', error.message);
+            return { success: false, error: error.message };
+        }
         return { success: true };
+    },
+
+    verifyOtp: async (phone, otpCode) => {
+        set({ isLoading: true });
+        const { data, error } = await supabase.auth.verifyOtp({
+            phone: `+91${phone}`,
+            token: otpCode,
+            type: 'sms',
+        });
+        set({ isLoading: false });
+
+        if (error) {
+            console.error('OTP Verify Error:', error.message);
+            return { success: false, error: error.message };
+        }
+
+        if (data && data.session) {
+            const userAttr = {
+                id: data.user.id,
+                name: 'Swim.ai User',
+                phone: data.user.phone,
+                email: data.user.email,
+                loyaltyPoints: 0,
+                totalOrders: 0,
+            };
+            set({
+                user: userAttr,
+                isAuthenticated: true,
+                token: data.session.access_token,
+            });
+            return { success: true };
+        }
+        return { success: false, error: 'Session could not be established' };
     },
 
     logout: () => set({

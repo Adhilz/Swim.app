@@ -9,7 +9,7 @@
 
 // ── Service Categories ───────────────────────
 
-export const SERVICE_CATEGORIES = [
+const SERVICE_CATEGORIES = [
     {
         id: 'food',
         name: 'Fine Dining',
@@ -52,7 +52,7 @@ export const SERVICE_CATEGORIES = [
 //  10 REAL STORES FROM ERNAKULAM / KOCHI
 // ══════════════════════════════════════════════
 
-export const STORES = [
+const STORES = [
     // ── 1. Paragon Restaurant ────────────────
     {
         id: 'paragon',
@@ -70,7 +70,7 @@ export const STORES = [
         isFeatured: true,
         isOpen: true,
         offer: 'Complimentary Dessert on ₹1000+',
-        image: require('../../assets/images/paragon_biryani.png'),
+        image: 'local:paragon_biryani.png',
         tags: ['Iconic', 'Legendary Biryani'],
         operatingHours: '11:00 AM – 11:00 PM',
         phone: '+91 484 272 0772',
@@ -95,7 +95,7 @@ export const STORES = [
         isFeatured: false,
         isOpen: true,
         offer: 'Unlimited Meals ₹199',
-        image: require('../../assets/images/grand_hotel_meals.png'),
+        image: 'local:grand_hotel_meals.png',
         tags: ['Heritage', 'Since 1958'],
         operatingHours: '7:00 AM – 10:30 PM',
         phone: '+91 484 238 2061',
@@ -120,7 +120,7 @@ export const STORES = [
         isFeatured: true,
         isOpen: true,
         offer: 'Art Gallery + Brunch Combo',
-        image: require('../../assets/images/kashi_art_cafe.png'),
+        image: 'local:kashi_art_cafe.png',
         tags: ['Artsy', 'Fort Kochi Vibe'],
         operatingHours: '8:30 AM – 10:00 PM',
         phone: '+91 484 221 5769',
@@ -316,7 +316,7 @@ export const STORES = [
 //  PRODUCTS (real menu/product data)
 // ══════════════════════════════════════════════
 
-export const PRODUCTS = [
+const PRODUCTS = [
 
     // ─── Calicut Paragon ─────────────────────
 
@@ -818,7 +818,7 @@ export const PRODUCTS = [
 
 // ── Promotional Banners ──────────────────────
 
-export const BANNERS = [
+const BANNERS = [
     {
         id: '1',
         title: 'Lulu Mall Kochi',
@@ -856,7 +856,7 @@ export const BANNERS = [
 
 // ── Orders ───────────────────────────────────
 
-export const ORDERS = [
+const ORDERS = [
     {
         id: 'ORD101',
         storeId: 'paragon',
@@ -895,7 +895,7 @@ export const ORDERS = [
 
 // ── Addresses ────────────────────────────────
 
-export const ADDRESSES = [
+const ADDRESSES = [
     {
         id: 'addr1',
         type: 'Home',
@@ -922,7 +922,7 @@ export const ADDRESSES = [
 
 // ── Notifications ────────────────────────────
 
-export const NOTIFICATIONS = [
+const NOTIFICATIONS = [
     {
         id: 'n1',
         type: 'order',
@@ -954,16 +954,16 @@ export const NOTIFICATIONS = [
 
 // ── Trending & Search ────────────────────────
 
-export const RECENT_SEARCHES = ['Biryani', 'Kanjivaram Saree', 'Ashwagandha', 'Kerala Meals'];
-export const TRENDING_SEARCHES = ['Kayees Biryani 🍛', 'Kashi Art Cafe ☕', 'Silk Sarees 🧵', 'Ayurveda 🌿', 'Lulu Mall 🛍️'];
+const RECENT_SEARCHES = ['Biryani', 'Kanjivaram Saree', 'Ashwagandha', 'Kerala Meals'];
+const TRENDING_SEARCHES = ['Kayees Biryani 🍛', 'Kashi Art Cafe ☕', 'Silk Sarees 🧵', 'Ayurveda 🌿', 'Lulu Mall 🛍️'];
 
 // ── Sort & Filter ────────────────────────────
 
-export const SORT_OPTIONS = ['Relevance', 'Rating', 'Delivery Time', 'Price (Low to High)'];
+const SORT_OPTIONS = ['Relevance', 'Rating', 'Delivery Time', 'Price (Low to High)'];
 
 // ── Payment Methods ──────────────────────────
 
-export const PAYMENT_METHODS = [
+const PAYMENT_METHODS = [
     { id: 'upi', name: 'UPI', icon: 'phone-portrait', desc: 'Pay via any UPI app' },
     { id: 'card', name: 'Card', icon: 'card', desc: 'Credit / Debit Card' },
     { id: 'wallet', name: 'Wallet', icon: 'wallet', desc: 'Swim.ai Wallet • ₹120' },
@@ -972,7 +972,7 @@ export const PAYMENT_METHODS = [
 
 // ── Order Tracking ───────────────────────────
 
-export const ORDER_STATUS_STEPS = [
+const ORDER_STATUS_STEPS = [
     { id: 'confirmed', label: 'Confirmed', icon: 'checkmark-circle', desc: 'Order accepted' },
     { id: 'preparing', label: 'Preparing', icon: 'restaurant', desc: 'Kitchen at work' },
     { id: 'pickup', label: 'Picked Up', icon: 'bicycle', desc: 'On the way' },
@@ -981,7 +981,7 @@ export const ORDER_STATUS_STEPS = [
 
 // ── Delivery Partner ─────────────────────────
 
-export const DELIVERY_PARTNER = {
+const DELIVERY_PARTNER = {
     name: 'Rajan Kumar',
     rating: 4.9,
     vehicle: 'Electric Scooter',
@@ -991,7 +991,7 @@ export const DELIVERY_PARTNER = {
 
 // ── Profile Menu ─────────────────────────────
 
-export const PROFILE_MENU_SECTIONS = [
+const PROFILE_MENU_SECTIONS = [
     {
         title: 'Orders & Wallet',
         items: [
@@ -1020,7 +1020,7 @@ export const PROFILE_MENU_SECTIONS = [
 
 // ── Promo Codes ──────────────────────────────
 
-export const PROMO_CODES = {
+const PROMO_CODES = {
     FIRST50: { discount: 0.5, maxDiscount: 100 },
     SAVE20: { discount: 0.2, maxDiscount: 60 },
     FREE: { discount: 0, maxDiscount: 0, freeDelivery: true },
@@ -1029,13 +1029,13 @@ export const PROMO_CODES = {
 
 // ── Icon Maps ────────────────────────────────
 
-export const NOTIFICATION_ICONS = {
+const NOTIFICATION_ICONS = {
     order: { icon: 'receipt', color: '#0096C7' },
     offer: { icon: 'pricetag', color: '#D29922' },
     promo: { icon: 'gift', color: '#3FB950' },
 };
 
-export const BANNER_ICONS = {
+const BANNER_ICONS = {
     food: 'restaurant',
     grocery: 'cart',
     pharmacy: 'medical',
@@ -1045,7 +1045,7 @@ export const BANNER_ICONS = {
 
 // ── App Config ───────────────────────────────
 
-export const APP_CONFIG = {
+const APP_CONFIG = {
     defaultLocation: {
         title: 'Marine Drive, Kochi',
         lat: 9.9723,
@@ -1060,9 +1060,11 @@ export const APP_CONFIG = {
 };
 
 // ── Legacy Aliases ───────────────────────────
-export const MOCK_STORES = STORES;
-export const MOCK_PRODUCTS = PRODUCTS;
-export const MOCK_BANNERS = BANNERS;
-export const MOCK_ORDERS = ORDERS;
-export const MOCK_ADDRESSES = ADDRESSES;
-export const MOCK_NOTIFICATIONS = NOTIFICATIONS;
+const MOCK_STORES = STORES;
+const MOCK_PRODUCTS = PRODUCTS;
+const MOCK_BANNERS = BANNERS;
+const MOCK_ORDERS = ORDERS;
+const MOCK_ADDRESSES = ADDRESSES;
+const MOCK_NOTIFICATIONS = NOTIFICATIONS;
+
+module.exports = { SERVICE_CATEGORIES, BANNERS, STORES, PRODUCTS, ADDRESSES, ORDERS, NOTIFICATIONS, SEARCH_TERMS, PAYMENT_METHODS, ORDER_STATUS_STEPS, DELIVERY_PARTNER, PROFILE_MENU_SECTIONS, NOTIFICATION_ICONS, BANNER_ICONS, APP_CONFIG, RECENT_SEARCHES, TRENDING_SEARCHES, SORT_OPTIONS, PROMO_CODES };

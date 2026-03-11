@@ -17,21 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
 import AppButton from '../../components/common/AppButton';
+import { ORDER_STATUS_STEPS, DELIVERY_PARTNER } from '../../data/mockData';
 
-const STATUS_STEPS = [
-    { id: 'confirmed', label: 'Confirmed', icon: 'checkmark-circle', desc: 'Order accepted' },
-    { id: 'preparing', label: 'Preparing', icon: 'restaurant', desc: 'Kitchen at work' },
-    { id: 'pickup', label: 'Picked Up', icon: 'bicycle', desc: 'On the way' },
-    { id: 'delivered', label: 'Delivered', icon: 'home', desc: 'At your door' },
-];
-
-const MOCK_PARTNER = {
-    name: 'Rajan Kumar',
-    rating: 4.9,
-    vehicle: 'Electric Scooter',
-    phone: '+91 9876543210',
-    totalDeliveries: 1240,
-};
+const STATUS_STEPS = ORDER_STATUS_STEPS;
+const MOCK_PARTNER = DELIVERY_PARTNER;
 
 const OrderTrackingScreen = ({ route, navigation }) => {
     const { orderId } = route.params || {};

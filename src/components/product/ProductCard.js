@@ -18,7 +18,11 @@ const ProductCard = ({ product, storeId, storeName }) => {
         <View style={styles.card}>
             {/* Header: Visuals */}
             <View style={styles.visuals}>
-                <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
+                <Image
+                    source={typeof product.image === 'string' ? { uri: product.image } : product.image}
+                    style={styles.image}
+                    resizeMode="cover"
+                />
                 <View style={styles.overlay}>
                     {product.isBestseller && (
                         <View style={styles.badge}>
@@ -70,11 +74,16 @@ const ProductCard = ({ product, storeId, storeName }) => {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: Colors.surface,
+        backgroundColor: Colors.card,
         borderRadius: BorderRadius['2xl'],
         marginBottom: Spacing.lg,
         borderWidth: 1,
         borderColor: Colors.glassBorder,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 4,
         overflow: 'hidden',
     },
     visuals: {

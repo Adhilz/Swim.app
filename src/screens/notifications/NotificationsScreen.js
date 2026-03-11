@@ -9,16 +9,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
-import { MOCK_NOTIFICATIONS } from '../../data/mockData';
+import { NOTIFICATIONS, NOTIFICATION_ICONS } from '../../data/mockData';
 
-const NOTIF_ICONS = {
-    order: { icon: 'receipt', color: Colors.primary },
-    offer: { icon: 'pricetag', color: Colors.warning },
-    promo: { icon: 'gift', color: Colors.pharmacy },
-};
+const NOTIF_ICONS = NOTIFICATION_ICONS;
 
 const NotificationsScreen = ({ navigation }) => {
-    const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+    const [notifications, setNotifications] = useState(NOTIFICATIONS);
 
     const markAllRead = () =>
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));

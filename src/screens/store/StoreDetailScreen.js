@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
 //  Screen: Store Detail (Swim.ai Premium)
 // ─────────────────────────────────────────────
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -19,18 +19,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
 import ProductCard from '../../components/product/ProductCard';
-import { MOCK_STORES, MOCK_PRODUCTS } from '../../data/mockData';
+import { useCartStore } from '../../store/cartStore';
+import { useDataStore } from '../../store/dataStore';
 
-const { width: W } = Dimensions.get('window');
+const { width: W, height: H } = Dimensions.get('window');
 const HERO_H = 360;
 
 const StoreDetailScreen = ({ route, navigation }) => {
-    const { storeId } = route.params || {};
-    const store = MOCK_STORES.find(s => s.id === storeId) || MOCK_STORES[0];
-    const products = MOCK_PRODUCTS.filter(p => p.storeId === store.id);
+    const { storeId } = route.params;
+    const { stores, products } = useDataStore();
+
+    // Find the current store and its associated products locally from the zustand store cache
+    const store = useMemo(() => stores.find(s => s.id === storeId), [stores, storeId]);
+    const storeProducts = useMemo(() => products.filter(p => p.storeId === storeId), [products, storeId]);
+
+    // Derive category tabs from actual product categories instead of hardcoding
+    const productCategories = useMemo(() => {
+        const cats = [...new Set(storeProducts.map(p => p.category))];
+        return cats.length > 0 ? cats : ['All'];
+    }, [storeProducts]);
 
     const scrollY = useRef(new Animated.Value(0)).current;
-    const [selectedCategory, setSelectedCategory] = useState(products[0]?.category || 'All');
+    const [selectedCategory, setSelectedCategory] = useState(productCategories[0]);
+
+    const filteredProducts = selectedCategory === 'All'
+        ? storeProducts
+        : storeProducts.filter(p => p.category === selectedCategory);
 
     const heroScale = scrollY.interpolate({
         inputRange: [-100, 0, 100],
@@ -43,6 +57,15 @@ const StoreDetailScreen = ({ route, navigation }) => {
         outputRange: [0, 1],
         extrapolate: 'clamp'
     });
+
+    // Handle case where store might not be found (e.g., invalid storeId)
+    if (!store) {
+        return (
+            <View style={styles.root}>
+                <Text style={{ color: Colors.white, textAlign: 'center', marginTop: 50 }}>Store not found.</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.root}>
@@ -84,9 +107,13 @@ const StoreDetailScreen = ({ route, navigation }) => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 140 }}
             >
-                {/* 1. Hero Image Section */}
+                {/* Header Image & Info */}
                 <Animated.View style={[styles.hero, { transform: [{ scale: heroScale }] }]}>
-                    <Image source={{ uri: store.image }} style={styles.heroImage} />
+                    <Image
+                        source={typeof store.image === 'string' ? { uri: store.image } : store.image}
+                        style={styles.heroImage}
+                        resizeMode="cover"
+                    />
                     <LinearGradient
                         colors={['transparent', 'rgba(1,4,9,0.7)', Colors.background]}
                         style={StyleSheet.absoluteFill}
@@ -122,10 +149,10 @@ const StoreDetailScreen = ({ route, navigation }) => {
                     </View>
                 </View>
 
-                {/* 3. Sticky Categories (Indices: [2]) */}
+                {/* 3. Sticky Categories — derived from actual products */}
                 <View style={styles.categoryContainer}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-                        {['Recommended', 'House Specials', 'Popular', 'Trending'].map(cat => (
+                        {productCategories.map(cat => (
                             <TouchableOpacity
                                 key={cat}
                                 onPress={() => setSelectedCategory(cat)}
@@ -139,7 +166,7 @@ const StoreDetailScreen = ({ route, navigation }) => {
 
                 {/* 4. Products */}
                 <View style={styles.productList}>
-                    {products.map(product => (
+                    {filteredProducts.map(product => (
                         <ProductCard
                             key={product.id}
                             product={product}
@@ -147,6 +174,13 @@ const StoreDetailScreen = ({ route, navigation }) => {
                             storeName={store.name}
                         />
                     ))}
+
+                    {filteredProducts.length === 0 && (
+                        <View style={styles.emptyProducts}>
+                            <Text style={{ fontSize: 48 }}>🍽️</Text>
+                            <Text style={styles.emptyText}>No items in this category</Text>
+                        </View>
+                    )}
                 </View>
             </Animated.ScrollView>
 
@@ -259,6 +293,9 @@ const styles = StyleSheet.create({
     catTextActive: { color: Colors.white, fontWeight: '700' },
 
     productList: { paddingHorizontal: Spacing.base, paddingTop: Spacing.base },
+
+    emptyProducts: { alignItems: 'center', paddingVertical: Spacing['3xl'] },
+    emptyText: { ...Typography.bodyMedium, color: Colors.textSecondary, marginTop: Spacing.sm },
 
     bottomBar: {
         position: 'absolute',

@@ -17,38 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
-import { MOCK_ORDERS } from '../../data/mockData';
-
-const MENU_SECTIONS = [
-    {
-        title: 'Orders & Wallet',
-        items: [
-            { id: 'orders', label: 'My Orders', icon: 'receipt-outline', badge: '2', route: 'OrderHistory' },
-            { id: 'wallet', label: 'Swim.ai Wallet', icon: 'wallet-outline', value: '₹120', route: 'Wallet' },
-            { id: 'coupons', label: 'Offers & Coupons', icon: 'pricetag-outline', badge: 'NEW', route: 'Coupons' },
-        ],
-    },
-    {
-        title: 'Account',
-        items: [
-            { id: 'addresses', label: 'Saved Addresses', icon: 'location-outline', route: 'AddressSelect' },
-            { id: 'payments', label: 'Payment Methods', icon: 'card-outline', route: 'Payments' },
-            { id: 'notifications', label: 'Notifications', icon: 'notifications-outline', route: 'Notifications' },
-        ],
-    },
-    {
-        title: 'Support',
-        items: [
-            { id: 'help', label: 'Help & Support', icon: 'help-circle-outline', route: 'Support' },
-            { id: 'rate', label: 'Rate the App', icon: 'star-outline', route: null },
-            { id: 'about', label: 'About Swim.ai', icon: 'information-circle-outline', route: null },
-        ],
-    },
-];
-
 const ProfileScreen = ({ navigation }) => {
     const { user, logout } = useAuthStore();
-    const [activeTab, setActiveTab] = useState('profile'); // profile | orders
 
     const statusColor = (status) => {
         switch (status) {
@@ -70,173 +40,40 @@ const ProfileScreen = ({ navigation }) => {
                 </TouchableOpacity>
             </View>
 
-            {/* Tab Switcher */}
-            <View style={styles.tabs}>
-                {['Profile', 'Orders'].map(tab => (
-                    <TouchableOpacity
-                        key={tab}
-                        style={[styles.tab, activeTab === tab.toLowerCase() && styles.tabActive]}
-                        onPress={() => setActiveTab(tab.toLowerCase())}
-                    >
-                        <Text style={[styles.tabText, activeTab === tab.toLowerCase() && styles.tabTextActive]}>
-                            {tab}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                {activeTab === 'profile' ? (
-                    <>
-                        {/* ── User Card ── */}
-                        <LinearGradient
-                            colors={['rgba(244,123,37,0.15)', 'transparent']}
-                            style={styles.userCard}
-                        >
-                            <View style={styles.userCardContent}>
-                                <LinearGradient colors={Colors.primaryGradient} style={styles.avatar}>
-                                    <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'U'}</Text>
-                                </LinearGradient>
-                                <View style={styles.userInfo}>
-                                    <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
-                                    <Text style={styles.userPhone}>{user?.phone ? `+91 ${user.phone}` : ''}</Text>
-                                    <Text style={styles.userEmail}>{user?.email || ''}</Text>
-                                </View>
-                                <TouchableOpacity style={styles.editBtn}>
-                                    <Ionicons name="pencil" size={16} color={Colors.primary} />
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Stats */}
-                            <View style={styles.statsRow}>
-                                {[
-                                    { label: 'Total Orders', value: user?.totalOrders || 23 },
-                                    { label: 'Loyalty Points', value: user?.loyaltyPoints || 450 },
-                                    { label: 'Saved 💰', value: '₹1.2K' },
-                                ].map((stat, i) => (
-                                    <React.Fragment key={stat.label}>
-                                        <View style={styles.stat}>
-                                            <Text style={styles.statValue}>{stat.value}</Text>
-                                            <Text style={styles.statLabel}>{stat.label}</Text>
-                                        </View>
-                                        {i < 2 && <View style={styles.statDivider} />}
-                                    </React.Fragment>
-                                ))}
-                            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}>
+                {/* ── User Card ── */}
+                <LinearGradient
+                    colors={['rgba(244,123,37,0.15)', 'transparent']}
+                    style={styles.userCard}
+                >
+                    <View style={styles.userCardContent}>
+                        <LinearGradient colors={Colors.primaryGradient} style={styles.avatar}>
+                            <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'U'}</Text>
                         </LinearGradient>
-
-                        {/* ── Menu Sections ── */}
-                        {MENU_SECTIONS.map(section => (
-                            <View key={section.title} style={styles.menuSection}>
-                                <Text style={styles.menuSectionTitle}>{section.title}</Text>
-                                <View style={styles.menuCard}>
-                                    {section.items.map((item, index) => (
-                                        <TouchableOpacity
-                                            key={item.id}
-                                            style={[
-                                                styles.menuItem,
-                                                index < section.items.length - 1 && styles.menuItemBorder,
-                                            ]}
-                                            onPress={() => item.route && navigation.navigate(item.route)}
-                                        >
-                                            <View style={styles.menuIconContainer}>
-                                                <Ionicons name={item.icon} size={20} color={Colors.primary} />
-                                            </View>
-                                            <Text style={styles.menuLabel}>{item.label}</Text>
-                                            <View style={styles.menuRight}>
-                                                {item.value && <Text style={styles.menuValue}>{item.value}</Text>}
-                                                {item.badge && (
-                                                    <View style={[
-                                                        styles.badge,
-                                                        item.badge === 'NEW' ? styles.badgeNew : styles.badgeCount,
-                                                    ]}>
-                                                        <Text style={styles.badgeText}>{item.badge}</Text>
-                                                    </View>
-                                                )}
-                                                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-                                            </View>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </View>
-                        ))}
-
-                        {/* Logout */}
-                        <TouchableOpacity
-                            style={styles.logoutBtn}
-                            onPress={() =>
-                                Alert.alert('Logout', 'Are you sure you want to logout?', [
-                                    { text: 'Cancel' },
-                                    { text: 'Logout', style: 'destructive', onPress: logout },
-                                ])
-                            }
-                        >
-                            <Ionicons name="log-out-outline" size={20} color={Colors.error} />
-                            <Text style={styles.logoutText}>Logout</Text>
+                        <View style={styles.userInfo}>
+                            <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
+                            <Text style={styles.userPhone}>{user?.phone ? `+91 ${user.phone}` : ''}</Text>
+                            <Text style={styles.userEmail}>{user?.email || ''}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.editBtn}>
+                            <Ionicons name="pencil" size={16} color={Colors.primary} />
                         </TouchableOpacity>
-                    </>
-                ) : (
-                    <>
-                        {/* ── Order History ── */}
-                        {MOCK_ORDERS.map(order => (
-                            <View key={order.id} style={styles.orderCard}>
-                                <View style={styles.orderHeader}>
-                                    <View>
-                                        <Text style={styles.orderStoreName}>{order.storeName}</Text>
-                                        <Text style={styles.orderDate}>{order.date} • {order.paymentMethod}</Text>
-                                    </View>
-                                    <View style={[styles.statusBadge, { backgroundColor: `${statusColor(order.status)}20` }]}>
-                                        <Text style={[styles.statusText, { color: statusColor(order.status) }]}>
-                                            {order.status}
-                                        </Text>
-                                    </View>
-                                </View>
+                    </View>
+                </LinearGradient>
 
-                                <View style={styles.orderItems}>
-                                    {order.items.map(item => (
-                                        <Text key={item.name} style={styles.orderItemText}>
-                                            {item.qty}x {item.name}
-                                        </Text>
-                                    ))}
-                                </View>
-
-                                <View style={styles.orderFooter}>
-                                    <View>
-                                        <Text style={styles.orderTotal}>₹{order.totalAmount}</Text>
-                                        <Text style={styles.orderDelivery}>{order.deliveryTime} delivery</Text>
-                                    </View>
-                                    <TouchableOpacity style={styles.reorderBtn}>
-                                        <Ionicons name="refresh" size={14} color={Colors.primary} />
-                                        <Text style={styles.reorderText}>Reorder</Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                {/* Rating (if delivered) */}
-                                {order.status === 'Delivered' && order.rating && (
-                                    <View style={styles.ratingRow}>
-                                        {[1, 2, 3, 4, 5].map(star => (
-                                            <Ionicons
-                                                key={star}
-                                                name="star"
-                                                size={14}
-                                                color={star <= order.rating ? Colors.star : Colors.border}
-                                            />
-                                        ))}
-                                        <Text style={styles.ratingLabel}>Your rating</Text>
-                                    </View>
-                                )}
-                            </View>
-                        ))}
-
-                        {MOCK_ORDERS.length === 0 && (
-                            <View style={styles.emptyOrders}>
-                                <Text style={{ fontSize: 64 }}>📦</Text>
-                                <Text style={styles.emptyTitle}>No orders yet</Text>
-                                <Text style={styles.emptySub}>Start ordering from your favorite stores!</Text>
-                            </View>
-                        )}
-                    </>
-                )}
+                {/* Logout */}
+                <TouchableOpacity
+                    style={styles.logoutBtn}
+                    onPress={() =>
+                        Alert.alert('Logout', 'Are you sure you want to logout?', [
+                            { text: 'Cancel' },
+                            { text: 'Logout', style: 'destructive', onPress: logout },
+                        ])
+                    }
+                >
+                    <Ionicons name="log-out-outline" size={20} color={Colors.error} />
+                    <Text style={styles.logoutText}>Logout</Text>
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
@@ -351,64 +188,6 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.xl,
     },
     logoutText: { ...Typography.labelLarge, color: Colors.error },
-
-    // Order Cards
-    orderCard: {
-        backgroundColor: Colors.card,
-        borderRadius: BorderRadius.xl,
-        padding: Spacing.base,
-        marginHorizontal: Spacing.base,
-        marginBottom: Spacing.sm,
-        ...Shadows.sm,
-    },
-    orderHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: Spacing.sm,
-    },
-    orderStoreName: { ...Typography.labelLarge, color: Colors.textPrimary },
-    orderDate: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
-    statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.full },
-    statusText: { ...Typography.labelSmall },
-    orderItems: { marginBottom: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.border },
-    orderItemText: { ...Typography.bodySmall, color: Colors.textSecondary, marginBottom: 2 },
-    orderFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: Spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: Colors.border,
-    },
-    orderTotal: { ...Typography.h5, color: Colors.textPrimary },
-    orderDelivery: { ...Typography.caption, color: Colors.textMuted },
-    reorderBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: `${Colors.primary}15`,
-        paddingHorizontal: Spacing.sm,
-        paddingVertical: Spacing.sm,
-        borderRadius: BorderRadius.md,
-        borderWidth: 1,
-        borderColor: Colors.primary,
-    },
-    reorderText: { ...Typography.labelSmall, color: Colors.primary },
-    ratingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginTop: Spacing.sm,
-        paddingTop: Spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: Colors.border,
-    },
-    ratingLabel: { ...Typography.caption, color: Colors.textMuted, marginLeft: 4 },
-
-    emptyOrders: { alignItems: 'center', padding: Spacing['3xl'] },
-    emptyTitle: { ...Typography.h4, color: Colors.textPrimary, marginTop: Spacing.base },
-    emptySub: { ...Typography.bodyMedium, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.sm },
 });
 
 export default ProfileScreen;

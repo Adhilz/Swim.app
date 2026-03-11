@@ -27,10 +27,15 @@ const FeaturedStoreCard = ({ store, onPress }) => {
             style={styles.container}
         >
             <View style={styles.card}>
-                <Image source={{ uri: store.image }} style={styles.image} resizeMode="cover" />
+                <Image
+                    source={typeof store.image === 'string' ? { uri: store.image } : store.image}
+                    style={styles.image}
+                    resizeMode="cover"
+                />
 
                 <LinearGradient
-                    colors={['transparent', 'rgba(1,4,9,0.95)']}
+                    colors={['transparent', 'rgba(4,4,10,0.95)', '#04040A']}
+                    locations={[0, 0.7, 1]}
                     style={styles.overlay}
                 />
 
@@ -78,6 +83,11 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.card,
         borderWidth: 1,
         borderColor: Colors.glassBorder,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 8,
     },
     image: {
         width: '100%',
@@ -88,7 +98,7 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        height: '60%',
+        height: '70%',
     },
     content: {
         position: 'absolute',

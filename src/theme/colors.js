@@ -4,22 +4,22 @@
 
 export const Colors = {
     // ── Primary Palette ──────────────────────
-    // ── Primary Palette (Swim.ai Sea Theme) ──
-    primary: '#0096C7',
-    primaryDark: '#023E8A',
-    primaryLight: '#ADE8F4',
-    primaryGradient: ['#0077B6', '#023E8A'],
+    // ── Primary Palette (Swim.ai Neon Sea) ──
+    primary: '#00D4FF',
+    primaryDark: '#0055FF',
+    primaryLight: '#80E5FF',
+    primaryGradient: ['#0055FF', '#00D4FF'],
 
     // ── Secondary ────────────────────────────
-    secondary: '#03045E',
-    secondaryLight: '#00B4D8',
+    secondary: '#7B2CBF',
+    secondaryLight: '#9D4EDD',
 
-    // ── Backgrounds (Deep Ocean Night) ───────
-    background: '#010409',
-    surface: '#0D1117',
-    surfaceLight: '#161B22',
-    card: '#21262D',
-    cardHover: '#30363D',
+    // ── Backgrounds (Deep Void) ──────────────
+    background: '#04040A',
+    surface: '#0A0A14',
+    surfaceLight: '#121220',
+    card: '#151525',
+    cardHover: '#1F1F35',
 
     // ── Text ─────────────────────────────────
     textPrimary: '#F0F6FC',
@@ -60,8 +60,9 @@ export const Colors = {
     shimmerHighlight: '#21262D',
 
     // ── Glassmorphism ────────────────────────
-    glass: 'rgba(255, 255, 255, 0.05)',
-    glassBorder: 'rgba(255, 255, 255, 0.1)',
+    glass: 'rgba(255, 255, 255, 0.03)',
+    glassStrong: 'rgba(255, 255, 255, 0.08)',
+    glassBorder: 'rgba(255, 255, 255, 0.15)',
 
     // ── Transparent ──────────────────────────
     transparent: 'transparent',

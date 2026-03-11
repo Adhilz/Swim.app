@@ -60,12 +60,12 @@ const styles = StyleSheet.create({
     iconContainer: {
         width: 72,
         height: 72,
-        borderRadius: 24,
+        borderRadius: 36, // Fully rounded capsule
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 8,
-        backgroundColor: Colors.surface,
-        borderWidth: 1.5,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderWidth: 1,
         borderColor: Colors.glassBorder,
         overflow: 'hidden',
     },

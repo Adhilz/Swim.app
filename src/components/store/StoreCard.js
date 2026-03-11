@@ -21,9 +21,13 @@ const StoreCard = ({ store, onPress, style }) => {
             style={[styles.card, style]}
         >
             <View style={styles.imageContainer}>
-                <Image source={{ uri: store.image }} style={styles.image} resizeMode="cover" />
+                <Image
+                    source={typeof store.image === 'string' ? { uri: store.image } : store.image}
+                    style={styles.image}
+                    resizeMode="cover"
+                />
                 <LinearGradient
-                    colors={['transparent', 'rgba(1,4,9,0.85)']}
+                    colors={['transparent', 'rgba(4,4,10,0.95)']}
                     style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.statusBadge}>
@@ -65,11 +69,16 @@ const StoreCard = ({ store, onPress, style }) => {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: Colors.surface,
+        backgroundColor: Colors.card,
         borderRadius: BorderRadius['2xl'],
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: Colors.glassBorder,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 5,
     },
     imageContainer: { height: 160, position: 'relative' },
     image: { width: '100%', height: '100%' },
@@ -80,10 +89,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: 'rgba(1,4,9,0.7)',
+        backgroundColor: 'rgba(4,4,10,0.8)',
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: BorderRadius.full,
+        borderWidth: 1,
+        borderColor: Colors.glassBorder,
     },
     dot: { width: 6, height: 6, borderRadius: 3 },
     statusText: { ...Typography.labelSmall, color: Colors.white, fontSize: 10 },
@@ -98,10 +109,18 @@ const styles = StyleSheet.create({
     },
     offerText: { ...Typography.labelSmall, color: Colors.white },
 
-    info: { padding: Spacing.lg },
+    info: { padding: Spacing.lg, backgroundColor: 'transparent' },
     nameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    name: { ...Typography.h4, color: Colors.white, flex: 1, marginRight: 8 },
-    ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    name: { ...Typography.h4, color: Colors.white, flex: 1, marginRight: 8, letterSpacing: -0.5 },
+    ratingBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(227,179,65,0.15)',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: BorderRadius.sm,
+    },
     ratingText: { ...Typography.labelSmall, color: Colors.star },
     location: { ...Typography.bodySmall, color: Colors.textSecondary, marginBottom: 12 },
 

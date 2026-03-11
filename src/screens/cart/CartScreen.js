@@ -20,14 +20,9 @@ import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme'
 import AppButton from '../../components/common/AppButton';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
-import { MOCK_ADDRESSES } from '../../data/mockData';
+import { ADDRESSES, PAYMENT_METHODS } from '../../data/mockData';
 
-const PAYMENT_METHODS = [
-    { id: 'upi', name: 'UPI', icon: 'phone-portrait', desc: 'Pay via any UPI app' },
-    { id: 'card', name: 'Card', icon: 'card', desc: 'Credit / Debit Card' },
-    { id: 'wallet', name: 'Wallet', icon: 'wallet', desc: 'Swim.ai Wallet • ₹120' },
-    { id: 'cod', name: 'Cash', icon: 'cash', desc: 'Pay on Delivery' },
-];
+
 
 const CartScreen = ({ navigation }) => {
     const {
@@ -51,7 +46,7 @@ const CartScreen = ({ navigation }) => {
     const [selectedPayment, setSelectedPayment] = useState('upi');
     const [placingOrder, setPlacingOrder] = useState(false);
 
-    const displayAddress = selectedAddress || MOCK_ADDRESSES[0];
+    const displayAddress = selectedAddress || ADDRESSES[0];
 
     const handleApplyPromo = () => {
         const promo = applyPromo(promoCode);

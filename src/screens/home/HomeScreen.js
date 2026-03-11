@@ -20,9 +20,10 @@ import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme'
 import CategoryPill from '../../components/home/CategoryPill';
 import StoreCard from '../../components/store/StoreCard';
 import FeaturedStoreCard from '../../components/store/FeaturedStoreCard';
-import { SERVICE_CATEGORIES, MOCK_STORES, MOCK_BANNERS } from '../../data/mockData';
+import { BANNERS, APP_CONFIG } from '../../data/mockData';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
+import { useDataStore } from '../../store/dataStore';
 
 const { width: W } = Dimensions.get('window');
 
@@ -32,8 +33,18 @@ const HomeScreen = ({ navigation }) => {
     const selectedAddress = useAuthStore(s => s.selectedAddress);
     const totalItems = useCartStore(s => s.getTotalItems());
 
-    const featuredStores = MOCK_STORES.filter(s => s.isFeatured);
-    const regularStores = MOCK_STORES.filter(s => !selectedCategory || s.category === selectedCategory);
+    // Fetch live Supabase data
+    const { stores, serviceCategories, fetchAppData, isLoading } = useDataStore();
+
+    React.useEffect(() => {
+        fetchAppData();
+    }, [fetchAppData]);
+
+    const featuredStores = stores.filter(s => s.isFeatured);
+    const regularStores = stores.filter(s => !selectedCategory || s.category === selectedCategory);
+
+    // Pick a promo banner based on current category or first banner
+    const promoBanner = BANNERS.find(b => b.category === selectedCategory) || BANNERS[0];
 
     return (
         <View style={styles.root}>
@@ -48,7 +59,7 @@ const HomeScreen = ({ navigation }) => {
                     >
                         <Ionicons name="location" size={18} color={Colors.primary} />
                         <View style={styles.locationText}>
-                            <Text style={styles.locationTitle}>Marine Drive, Kochi</Text>
+                            <Text style={styles.locationTitle}>{APP_CONFIG.defaultLocation.title}</Text>
                             <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
                         </View>
                     </TouchableOpacity>
@@ -71,14 +82,14 @@ const HomeScreen = ({ navigation }) => {
             >
                 {/* ── Hero Search Section ── */}
                 <View style={styles.heroSection}>
-                    <Text style={styles.heroTitle}>Discover the Best of{'\n'}Ernakulam</Text>
+                    <Text style={styles.heroTitle}>{APP_CONFIG.heroTitle}</Text>
 
                     <TouchableOpacity
                         style={styles.searchBar}
                         onPress={() => navigation.navigate('Search')}
                     >
                         <Ionicons name="search" size={20} color={Colors.textSecondary} />
-                        <Text style={styles.searchPlaceholder}>Search stores or dishes...</Text>
+                        <Text style={styles.searchPlaceholder}>{APP_CONFIG.searchPlaceholder}</Text>
                         <View style={styles.searchCommand}>
                             <Text style={styles.commandText}>⌘K</Text>
                         </View>
@@ -87,7 +98,7 @@ const HomeScreen = ({ navigation }) => {
 
                 {/* ── Modern Category Pills ── */}
                 <FlatList
-                    data={SERVICE_CATEGORIES}
+                    data={serviceCategories}
                     renderItem={({ item }) => (
                         <CategoryPill
                             category={item}
@@ -101,10 +112,10 @@ const HomeScreen = ({ navigation }) => {
                     contentContainerStyle={styles.categoriesRow}
                 />
 
-                {/* ── Featured Section (The "Eye Catching" Part) ── */}
+                {/* ── Featured Section ── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Legendary Stores</Text>
+                        <Text style={styles.sectionTitle}>{APP_CONFIG.featuredLabel}</Text>
                         <TouchableOpacity>
                             <Text style={styles.seeAll}>View All</Text>
                         </TouchableOpacity>
@@ -127,25 +138,33 @@ const HomeScreen = ({ navigation }) => {
                 </View>
 
                 {/* ── Promo Banner ── */}
-                <View style={styles.promoSection}>
-                    <Image
-                        source={{ uri: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800' }}
-                        style={styles.promoImage}
-                    />
-                    <LinearGradient
-                        colors={['transparent', 'rgba(1,4,9,0.8)']}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={styles.promoContent}>
-                        <Text style={styles.promoTitle}>Culinary Experience</Text>
-                        <Text style={styles.promoSubtitle}>Explore Lulu Mall's Finest</Text>
-                    </View>
-                </View>
+                {promoBanner && (
+                    <TouchableOpacity
+                        style={styles.promoSection}
+                        activeOpacity={0.9}
+                        onPress={() => promoBanner.storeId && navigation.navigate('StoreDetail', { storeId: promoBanner.storeId })}
+                    >
+                        {promoBanner.image && (
+                            <Image
+                                source={{ uri: promoBanner.image }}
+                                style={styles.promoImage}
+                            />
+                        )}
+                        <LinearGradient
+                            colors={[promoBanner.image ? 'transparent' : promoBanner.bgColor, promoBanner.image ? 'rgba(1,4,9,0.8)' : `${promoBanner.bgColor}CC`]}
+                            style={StyleSheet.absoluteFill}
+                        />
+                        <View style={styles.promoContent}>
+                            <Text style={styles.promoTitle}>{promoBanner.title}</Text>
+                            <Text style={styles.promoSubtitle}>{promoBanner.subtitle}</Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
 
                 {/* ── Regular Stores ── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Around Panampilly Nagar</Text>
+                        <Text style={styles.sectionTitle}>{APP_CONFIG.nearbyLabel}</Text>
                     </View>
                     {regularStores.map(store => (
                         <StoreCard
@@ -167,7 +186,7 @@ const HomeScreen = ({ navigation }) => {
                     <LinearGradient colors={['#0096C7', '#023E8A']} style={styles.cartGradient}>
                         <View style={styles.cartInfo}>
                             <Text style={styles.cartCount}>{totalItems} items</Text>
-                            <Text style={styles.cartSub}>Swim.ai Checkout</Text>
+                            <Text style={styles.cartSub}>{APP_CONFIG.appName} Checkout</Text>
                         </View>
                         <View style={styles.cartAction}>
                             <Text style={styles.cartActionText}>View Cart</Text>
@@ -189,7 +208,9 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 10,
-        backgroundColor: 'rgba(1,4,9,0.8)',
+        backgroundColor: 'rgba(4,4,10,0.85)',
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.glassBorder,
     },
     headerContent: {
         flexDirection: 'row',
@@ -230,13 +251,15 @@ const styles = StyleSheet.create({
     heroTitle: {
         ...Typography.h1,
         color: Colors.white,
-        fontSize: 32,
-        lineHeight: 38,
+        fontSize: 34,
+        lineHeight: 40,
+        letterSpacing: -1,
+        fontWeight: '800',
     },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
+        backgroundColor: 'rgba(255,255,255,0.02)',
         borderRadius: BorderRadius.xl,
         marginTop: Spacing.xl,
         paddingVertical: 14,
@@ -244,6 +267,10 @@ const styles = StyleSheet.create({
         gap: 12,
         borderWidth: 1,
         borderColor: Colors.glassBorder,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
     },
     searchPlaceholder: { ...Typography.bodyMedium, color: Colors.textSecondary, flex: 1 },
     searchCommand: {

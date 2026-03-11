@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────
-//  Screen: Onboarding + Auth (Phone + OTP)
+//  Screen: Splash Logo → Phone → OTP
+//  No onboarding slides — just Swim.ai branding
 // ─────────────────────────────────────────────
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -14,7 +15,6 @@ import {
     ScrollView,
     StatusBar,
     Animated,
-    FlatList,
     Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,98 +26,98 @@ import { useAuthStore } from '../../store/authStore';
 
 const { width: W, height: H } = Dimensions.get('window');
 
-const ONBOARDING_SLIDES = [
-    {
-        id: '1',
-        title: 'Everything,\nDelivered Fast',
-        subtitle: 'Food, groceries, medicine and more — at your doorstep in minutes.',
-        icon: 'restaurant',
-        color: Colors.food,
-        gradient: ['#F47B25', '#E55A00'],
-    },
-    {
-        id: '2',
-        title: 'Health at\nYour Door',
-        subtitle: 'Order medicines, upload prescriptions, and get healthcare products instantly.',
-        icon: 'medical',
-        color: Colors.pharmacy,
-        gradient: ['#22C55E', '#16A34A'],
-    },
-    {
-        id: '3',
-        title: 'Shop Local,\nShop Smart',
-        subtitle: 'Discover the best local stores, supermarkets, and boutiques near you.',
-        icon: 'bag',
-        color: Colors.shopping,
-        gradient: ['#A855F7', '#7C3AED'],
-    },
-];
-
 const OnboardingScreen = ({ navigation }) => {
-    const [step, setStep] = useState('onboard'); // onboard | phone | otp
-    const [slideIndex, setSlideIndex] = useState(0);
+    const [step, setStep] = useState('splash'); // splash | phone | otp
     const [phone, setPhone] = useState('');
-    const [otp, setOtp] = useState(['', '', '', '']);
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
-    const flatListRef = useRef(null);
-    const otpRefs = [useRef(), useRef(), useRef(), useRef()];
-    const { login } = useAuthStore();
+    const otpRefs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
+    const { sendOtp, verifyOtp } = useAuthStore();
 
-    const handleSlideChange = (e) => {
-        const index = Math.round(e.nativeEvent.contentOffset.x / W);
-        setSlideIndex(index);
-    };
+    // ── Splash animations ────────────────────
+    const logoScale = useRef(new Animated.Value(0.3)).current;
+    const logoOpacity = useRef(new Animated.Value(0)).current;
+    const taglineOpacity = useRef(new Animated.Value(0)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const glowOpacity = useRef(new Animated.Value(0)).current;
 
-    const handleNextSlide = () => {
-        if (slideIndex < ONBOARDING_SLIDES.length - 1) {
-            flatListRef.current?.scrollToIndex({ index: slideIndex + 1, animated: true });
-        } else {
-            setStep('phone');
+    useEffect(() => {
+        if (step === 'splash') {
+            // Logo entrance
+            Animated.parallel([
+                Animated.spring(logoScale, {
+                    toValue: 1,
+                    friction: 6,
+                    tension: 40,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(logoOpacity, {
+                    toValue: 1,
+                    duration: 800,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+
+            // Tagline fade in
+            setTimeout(() => {
+                Animated.timing(taglineOpacity, {
+                    toValue: 1,
+                    duration: 600,
+                    useNativeDriver: true,
+                }).start();
+            }, 600);
+
+            // Glow pulse
+            setTimeout(() => {
+                Animated.loop(
+                    Animated.sequence([
+                        Animated.timing(glowOpacity, { toValue: 0.6, duration: 1200, useNativeDriver: true }),
+                        Animated.timing(glowOpacity, { toValue: 0.2, duration: 1200, useNativeDriver: true }),
+                    ])
+                ).start();
+            }, 400);
+
+            // Auto-transition to phone after 2.5s
+            const timer = setTimeout(() => {
+                setStep('phone');
+            }, 2500);
+
+            return () => clearTimeout(timer);
         }
-    };
+    }, [step]);
 
     const handleSendOtp = async () => {
         if (phone.length < 10) return;
         setLoading(true);
-        await new Promise(r => setTimeout(r, 1000));
+        const res = await sendOtp(phone);
         setLoading(false);
-        setStep('otp');
+        if (res.success) {
+            setStep('otp');
+        } else {
+            alert(res.error || 'Failed to send OTP code.');
+        }
     };
 
     const handleOtpChange = (text, index) => {
         const newOtp = [...otp];
         newOtp[index] = text;
         setOtp(newOtp);
-        if (text && index < 3) otpRefs[index + 1].current?.focus();
+        if (text && index < 5) otpRefs[index + 1].current?.focus();
         if (!text && index > 0) otpRefs[index - 1].current?.focus();
     };
 
     const handleVerifyOtp = async () => {
         const code = otp.join('');
-        if (code.length < 4) return;
+        if (code.length < 6) return;
         setLoading(true);
-        await login(phone, code);
+        const res = await verifyOtp(phone, code);
         setLoading(false);
+        if (!res.success) {
+            alert(res.error || 'Invalid OTP code.');
+        }
     };
 
-    // ── Onboarding Slide ──────────────────────
-    const renderSlide = ({ item }) => (
-        <View style={[styles.slide, { width: W }]}>
-            <LinearGradient
-                colors={[`${item.color}20`, Colors.background]}
-                style={StyleSheet.absoluteFill}
-            />
-            <View style={[styles.illustrationCircle, { backgroundColor: `${item.color}15` }]}>
-                <LinearGradient colors={item.gradient} style={styles.iconGradient}>
-                    <Ionicons name={item.icon} size={72} color={Colors.white} />
-                </LinearGradient>
-            </View>
-            <Text style={styles.slideTitle}>{item.title}</Text>
-            <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
-        </View>
-    );
-
-    // ── OTP Input ─────────────────────────────
+    // ── OTP Input Box ────────────────────────
     const renderOtpBox = (index) => (
         <TextInput
             key={index}
@@ -142,64 +142,68 @@ const OnboardingScreen = ({ navigation }) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
             >
-                {/* ── Onboarding ── */}
-                {step === 'onboard' && (
-                    <View style={{ flex: 1 }}>
-                        {/* App Logo */}
-                        <View style={styles.logoRow}>
-                            <Image source={require('../../../assets/logo.png')} style={styles.logoImage} />
-                            <Text style={styles.logoText}>Swim.ai</Text>
-                        </View>
-
-                        <FlatList
-                            ref={flatListRef}
-                            data={ONBOARDING_SLIDES}
-                            renderItem={renderSlide}
-                            keyExtractor={i => i.id}
-                            horizontal
-                            pagingEnabled
-                            showsHorizontalScrollIndicator={false}
-                            onScroll={handleSlideChange}
-                            scrollEventThrottle={16}
-                            style={{ flex: 1 }}
+                {/* ════════════════════════════════════════
+                     SPLASH — Swim.ai Logo Only
+                   ════════════════════════════════════════ */}
+                {step === 'splash' && (
+                    <View style={styles.splashContainer}>
+                        <LinearGradient
+                            colors={['#010409', '#0D1117', '#010409']}
+                            style={StyleSheet.absoluteFill}
                         />
 
-                        {/* Dots + Navigation */}
-                        <View style={styles.onboardFooter}>
-                            <View style={styles.dots}>
-                                {ONBOARDING_SLIDES.map((_, i) => (
-                                    <View
-                                        key={i}
-                                        style={[styles.dot, i === slideIndex && styles.dotActive]}
-                                    />
-                                ))}
-                            </View>
-                            <AppButton
-                                title={slideIndex === ONBOARDING_SLIDES.length - 1 ? "Get Started" : "Next"}
-                                onPress={handleNextSlide}
-                                size="md"
-                                style={{ paddingHorizontal: Spacing['2xl'] }}
+                        {/* Animated glow ring behind logo */}
+                        <Animated.View style={[styles.glowRing, { opacity: glowOpacity }]}>
+                            <LinearGradient
+                                colors={['transparent', `${Colors.primary}30`, 'transparent']}
+                                style={styles.glowGradient}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
                             />
-                            {slideIndex < ONBOARDING_SLIDES.length - 1 && (
-                                <TouchableOpacity onPress={() => setStep('phone')} style={styles.skipBtn}>
-                                    <Text style={styles.skipText}>Skip</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                        </Animated.View>
+
+                        {/* Logo */}
+                        <Animated.View style={[
+                            styles.splashLogoWrap,
+                            {
+                                transform: [{ scale: logoScale }],
+                                opacity: logoOpacity,
+                            }
+                        ]}>
+                            <Image
+                                source={require('../../../assets/logo.png')}
+                                style={styles.splashLogo}
+                            />
+                        </Animated.View>
+
+                        {/* App Name */}
+                        <Animated.View style={{ opacity: logoOpacity, marginTop: Spacing.xl }}>
+                            <Text style={styles.splashName}>Swim.ai</Text>
+                        </Animated.View>
+
+                        {/* Tagline */}
+                        <Animated.View style={{ opacity: taglineOpacity, marginTop: Spacing.sm }}>
+                            <Text style={styles.splashTagline}>Everything delivered. Ernakulam.</Text>
+                        </Animated.View>
+
+                        {/* Skip to sign in */}
+                        <Animated.View style={[styles.splashSkip, { opacity: taglineOpacity }]}>
+                            <TouchableOpacity onPress={() => setStep('phone')}>
+                                <Text style={styles.splashSkipText}>Tap to continue →</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
                     </View>
                 )}
 
-                {/* ── Phone Number ── */}
+                {/* ════════════════════════════════════════
+                     PHONE NUMBER ENTRY
+                   ════════════════════════════════════════ */}
                 {step === 'phone' && (
                     <ScrollView contentContainerStyle={styles.authContainer} keyboardShouldPersistTaps="handled">
-                        <TouchableOpacity onPress={() => setStep('onboard')} style={styles.backBtn}>
-                            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
-                        </TouchableOpacity>
-
                         <View style={styles.authHeader}>
                             <Image source={require('../../../assets/logo.png')} style={styles.authLogo} />
                             <Text style={styles.authTitle}>Enter your{'\n'}mobile number</Text>
-                            <Text style={styles.authSubtitle}>We'll send a 4-digit OTP to verify your number</Text>
+                            <Text style={styles.authSubtitle}>We'll send a 6-digit OTP to verify your number</Text>
                         </View>
 
                         {/* Phone Input */}
@@ -218,6 +222,7 @@ const OnboardingScreen = ({ navigation }) => {
                                 value={phone}
                                 onChangeText={setPhone}
                                 selectionColor={Colors.primary}
+                                autoFocus
                             />
                         </View>
 
@@ -257,7 +262,9 @@ const OnboardingScreen = ({ navigation }) => {
                     </ScrollView>
                 )}
 
-                {/* ── OTP Verification ── */}
+                {/* ════════════════════════════════════════
+                     OTP VERIFICATION
+                   ════════════════════════════════════════ */}
                 {step === 'otp' && (
                     <ScrollView contentContainerStyle={styles.authContainer} keyboardShouldPersistTaps="handled">
                         <TouchableOpacity onPress={() => setStep('phone')} style={styles.backBtn}>
@@ -270,14 +277,14 @@ const OnboardingScreen = ({ navigation }) => {
                             </View>
                             <Text style={styles.authTitle}>Verify OTP</Text>
                             <Text style={styles.authSubtitle}>
-                                Enter the 4-digit code sent to{'\n'}
+                                Enter the 6-digit code sent to{'\n'}
                                 <Text style={{ color: Colors.primary }}>+91 {phone}</Text>
                             </Text>
                         </View>
 
                         {/* OTP Boxes */}
                         <View style={styles.otpRow}>
-                            {[0, 1, 2, 3].map(renderOtpBox)}
+                            {[0, 1, 2, 3, 4, 5].map(renderOtpBox)}
                         </View>
 
                         <AppButton
@@ -305,71 +312,62 @@ const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: Colors.background },
     container: { flex: 1 },
 
-    // Logo
-    logoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: Spacing.base,
-        gap: Spacing.sm,
-        marginTop: Spacing.sm,
-    },
-    logoIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    logoImage: { width: 44, height: 44, borderRadius: 12 },
-    logoText: { ...Typography.h3, color: Colors.textPrimary },
-
-    // Slide
-    slide: {
+    // ── Splash ───────────────────────────────
+    splashContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: Spacing['2xl'],
     },
-    illustrationCircle: {
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: Spacing['3xl'],
+    glowRing: {
+        position: 'absolute',
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+        overflow: 'hidden',
     },
-    iconGradient: {
-        width: 140,
-        height: 140,
-        borderRadius: 70,
-        alignItems: 'center',
-        justifyContent: 'center',
+    glowGradient: {
+        width: '100%',
+        height: '100%',
     },
-    slideTitle: {
-        ...Typography.displaySmall,
-        color: Colors.textPrimary,
-        textAlign: 'center',
-        marginBottom: Spacing.base,
+    splashLogoWrap: {
+        width: 120,
+        height: 120,
+        borderRadius: 30,
+        overflow: 'hidden',
+        ...Shadows.primary,
+        shadowRadius: 30,
     },
-    slideSubtitle: {
+    splashLogo: {
+        width: 120,
+        height: 120,
+    },
+    splashName: {
+        ...Typography.h1,
+        color: Colors.white,
+        fontSize: 42,
+        fontWeight: '800',
+        letterSpacing: -1,
+    },
+    splashTagline: {
         ...Typography.bodyLarge,
         color: Colors.textSecondary,
         textAlign: 'center',
-        lineHeight: 26,
+    },
+    splashSkip: {
+        position: 'absolute',
+        bottom: 60,
+    },
+    splashSkipText: {
+        ...Typography.bodyMedium,
+        color: Colors.primaryLight,
+        opacity: 0.8,
     },
 
-    // Onboard footer
-    onboardFooter: {
-        alignItems: 'center',
-        paddingBottom: Spacing['2xl'],
-        paddingHorizontal: Spacing.base,
-        gap: Spacing.base,
-    },
-    dots: { flexDirection: 'row', gap: 8 },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.border },
-    dotActive: { width: 24, backgroundColor: Colors.primary },
-    skipBtn: { padding: Spacing.sm },
-    skipText: { ...Typography.bodyMedium, color: Colors.textSecondary },
-
-    // Auth common
+    // ── Auth common ──────────────────────────
     authContainer: {
         flexGrow: 1,
         paddingHorizontal: Spacing.base,
-        paddingTop: Spacing.sm,
+        paddingTop: Spacing['3xl'],
         paddingBottom: Spacing['3xl'],
     },
     backBtn: {
@@ -382,14 +380,6 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.xl,
     },
     authHeader: { alignItems: 'center', marginBottom: Spacing['2xl'] },
-    authIcon: {
-        width: 80,
-        height: 80,
-        borderRadius: BorderRadius['2xl'],
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: Spacing.xl,
-    },
     authLogo: {
         width: 100,
         height: 100,
@@ -419,7 +409,7 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
 
-    // Phone Input
+    // ── Phone Input ──────────────────────────
     phoneRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -451,12 +441,12 @@ const styles = StyleSheet.create({
 
     authBtn: { width: '100%' },
 
-    // Divider
+    // ── Divider ──────────────────────────────
     divider: { flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.xl, gap: Spacing.sm },
     dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
     dividerText: { ...Typography.bodySmall, color: Colors.textMuted },
 
-    // Social
+    // ── Social ───────────────────────────────
     socialRow: { flexDirection: 'row', gap: Spacing.base, marginBottom: Spacing.xl },
     socialBtn: {
         flex: 1,
@@ -472,20 +462,20 @@ const styles = StyleSheet.create({
     },
     socialText: { ...Typography.labelLarge, color: Colors.textPrimary },
 
-    // Terms
+    // ── Terms ────────────────────────────────
     termsText: { ...Typography.bodySmall, color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
     termsLink: { color: Colors.primary, fontWeight: '600' },
 
-    // OTP
-    otpRow: { flexDirection: 'row', gap: Spacing.base, justifyContent: 'center', marginBottom: Spacing.xl },
+    // ── OTP ──────────────────────────────────
+    otpRow: { flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center', marginBottom: Spacing.xl },
     otpBox: {
-        width: 64,
-        height: 72,
+        width: 48,
+        height: 56,
         backgroundColor: Colors.surface,
         borderRadius: BorderRadius.lg,
         borderWidth: 1.5,
         borderColor: Colors.border,
-        ...Typography.h2,
+        ...Typography.h3,
         color: Colors.textPrimary,
     },
     otpBoxFilled: { borderColor: Colors.primary, backgroundColor: `${Colors.primary}15` },

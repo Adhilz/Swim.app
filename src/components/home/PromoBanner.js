@@ -13,16 +13,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
-import { MOCK_BANNERS } from '../../data/mockData';
+import { BANNERS, BANNER_ICONS } from '../../data/mockData';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = SCREEN_WIDTH - Spacing.base * 2;
 
-const BANNER_ICONS = {
-    food: 'restaurant',
-    grocery: 'cart',
-    pharmacy: 'medical',
-};
+
 
 const PromoBanner = ({ onPress }) => {
     const flatListRef = useRef(null);
@@ -32,7 +28,7 @@ const PromoBanner = ({ onPress }) => {
     useEffect(() => {
         timerRef.current = setInterval(() => {
             setActiveIndex(prev => {
-                const next = (prev + 1) % MOCK_BANNERS.length;
+                const next = (prev + 1) % BANNERS.length;
                 flatListRef.current?.scrollToIndex({ index: next, animated: true });
                 return next;
             });
@@ -78,7 +74,7 @@ const PromoBanner = ({ onPress }) => {
         <View>
             <FlatList
                 ref={flatListRef}
-                data={MOCK_BANNERS}
+                data={BANNERS}
                 renderItem={renderBanner}
                 keyExtractor={i => i.id}
                 horizontal
@@ -98,7 +94,7 @@ const PromoBanner = ({ onPress }) => {
             />
             {/* Dot Indicators */}
             <View style={styles.dots}>
-                {MOCK_BANNERS.map((_, i) => (
+                {BANNERS.map((_, i) => (
                     <View
                         key={i}
                         style={[styles.dot, i === activeIndex && styles.dotActive]}
