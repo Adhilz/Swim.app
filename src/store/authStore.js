@@ -16,24 +16,42 @@ export const useAuthStore = create((set, get) => ({
 
     sendOtp: async (phone) => {
         set({ isLoading: true });
-        const { data, error } = await supabase.auth.signInWithOtp({
-            phone: `+91${phone}`
-        });
+        // Simulate sending SMS
+        await new Promise(r => setTimeout(r, 800));
         set({ isLoading: false });
-        if (error) {
-            console.error('OTP Send Error:', error.message);
-            return { success: false, error: error.message };
-        }
+        console.log(`[MOCK SMS] OTP sent to ${phone}. Enter any 6 digits to verify.`);
         return { success: true };
     },
 
     verifyOtp: async (phone, otpCode) => {
         set({ isLoading: true });
-        const { data, error } = await supabase.auth.verifyOtp({
-            phone: `+91${phone}`,
-            token: otpCode,
-            type: 'sms',
+
+        // Simulate verifying SMS code
+        await new Promise(r => setTimeout(r, 800));
+
+        // Use a dummy email derived from the phone number to use Supabase's free Email Auth natively!
+        const dummyEmail = `${phone}@swim.ai`;
+        const dummyPassword = `swim_secure_${phone}`;
+
+        // 1. Try to sign in the user
+        let { data, error } = await supabase.auth.signInWithPassword({
+            email: dummyEmail,
+            password: dummyPassword,
         });
+
+        // 2. If the user doesn't exist, sign them up invisibly
+        if (error && error.message.includes('Invalid login credentials')) {
+            const res = await supabase.auth.signUp({
+                email: dummyEmail,
+                password: dummyPassword,
+                options: {
+                    data: { phone: `+91${phone}`, name: 'Swim.ai User' }
+                }
+            });
+            data = res.data;
+            error = res.error;
+        }
+
         set({ isLoading: false });
 
         if (error) {
@@ -44,9 +62,9 @@ export const useAuthStore = create((set, get) => ({
         if (data && data.session) {
             const userAttr = {
                 id: data.user.id,
-                name: 'Swim.ai User',
-                phone: data.user.phone,
-                email: data.user.email,
+                name: data.user.user_metadata?.name || 'Swim.ai User',
+                phone: `+91${phone}`,
+                email: dummyEmail,
                 loyaltyPoints: 0,
                 totalOrders: 0,
             };
