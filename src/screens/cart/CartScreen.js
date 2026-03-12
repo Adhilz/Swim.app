@@ -21,12 +21,12 @@ import AppButton from '../../components/common/AppButton';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { ADDRESSES, PAYMENT_METHODS } from '../../data/mockData';
-
-
+import { supabase } from '../../lib/supabase';
 
 const CartScreen = ({ navigation }) => {
     const {
         items,
+        storeId,
         storeName,
         addItem,
         removeItem,
@@ -40,13 +40,14 @@ const CartScreen = ({ navigation }) => {
     } = useCartStore();
 
     const selectedAddress = useAuthStore(s => s.selectedAddress);
+    const user = useAuthStore(s => s.user);
 
     const [promoCode, setPromoCode] = useState('');
     const [appliedPromo, setAppliedPromo] = useState(null);
     const [selectedPayment, setSelectedPayment] = useState('upi');
     const [placingOrder, setPlacingOrder] = useState(false);
 
-    const displayAddress = selectedAddress || ADDRESSES[0];
+    const displayAddress = selectedAddress || null;
 
     const handleApplyPromo = () => {
         const promo = applyPromo(promoCode);
@@ -67,11 +68,42 @@ const CartScreen = ({ navigation }) => {
     };
 
     const handlePlaceOrder = async () => {
+        if (!user || (!storeId && items.length > 0)) {
+            Alert.alert('Error', 'Unable to place order. Missing user or store information.');
+            return;
+        }
+
         setPlacingOrder(true);
-        await new Promise(r => setTimeout(r, 2000));
+
+        const subtotalP = getSubtotal();
+        const delivery = getDeliveryFee();
+        const taxes = getTaxes();
+        const discount = getDiscount();
+        const total = subtotalP + delivery + taxes - discount;
+
+        const orderData = {
+            user_id: user.id,
+            store_id: storeId,
+            total_amount: total,
+            status: 'Pending',
+            items: items,
+            delivery_address: displayAddress,
+        };
+
+        const { data, error } = await supabase
+            .from('orders')
+            .insert([orderData])
+            .select('*')
+            .single();
+
         setPlacingOrder(false);
-        clearCart();
-        navigation.replace('OrderTracking', { orderId: 'ORD' + Date.now() });
+
+        if (error) {
+            Alert.alert('Order Failed', error.message);
+        } else {
+            clearCart();
+            navigation.replace('OrderTracking', { orderId: data?.id || 'ORD' + Date.now() });
+        }
     };
 
     if (items.length === 0) {
@@ -204,19 +236,31 @@ const CartScreen = ({ navigation }) => {
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Delivery Address</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('AddressSelect')}>
-                            <Text style={styles.changeLink}>Change</Text>
+                            <Text style={styles.changeLink}>{displayAddress ? 'Change' : 'Add New'}</Text>
                         </TouchableOpacity>
                     </View>
-                    <View style={styles.addressCard}>
-                        <View style={styles.addressIcon}>
-                            <Ionicons name={displayAddress.type === 'Home' ? 'home' : 'briefcase'} size={18} color={Colors.primary} />
+                    {displayAddress ? (
+                        <View style={styles.addressCard}>
+                            <View style={styles.addressIcon}>
+                                <Ionicons name={displayAddress.type === 'Home' ? 'home' : 'briefcase'} size={18} color={Colors.primary} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.addressType}>{displayAddress.type}</Text>
+                                <Text style={styles.addressText}>{displayAddress.addressLine1}, {displayAddress.addressLine2}</Text>
+                            </View>
+                            <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
                         </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.addressType}>{displayAddress.type}</Text>
-                            <Text style={styles.addressText}>{displayAddress.addressLine1}, {displayAddress.addressLine2}</Text>
-                        </View>
-                        <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-                    </View>
+                    ) : (
+                        <TouchableOpacity 
+                            style={[styles.addressCard, { borderStyle: 'dashed', backgroundColor: 'transparent' }]}
+                            onPress={() => navigation.navigate('AddressSelect')}
+                        >
+                            <View style={styles.addressIcon}>
+                                <Ionicons name="add" size={18} color={Colors.primary} />
+                            </View>
+                            <Text style={[styles.addressType, { flex: 1 }]}>Please add a delivery address</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* ── Payment Method ── */}
@@ -253,6 +297,7 @@ const CartScreen = ({ navigation }) => {
                     title={`Place Order  ₹${total}`}
                     onPress={handlePlaceOrder}
                     loading={placingOrder}
+                    disabled={!displayAddress}
                     style={styles.placeOrderBtn}
                 />
             </View>

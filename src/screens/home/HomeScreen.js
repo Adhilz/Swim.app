@@ -59,7 +59,7 @@ const HomeScreen = ({ navigation }) => {
                     >
                         <Ionicons name="location" size={18} color={Colors.primary} />
                         <View style={styles.locationText}>
-                            <Text style={styles.locationTitle}>{APP_CONFIG.defaultLocation.title}</Text>
+                            <Text style={styles.locationTitle}>{selectedAddress ? selectedAddress.type : 'Add Address'}</Text>
                             <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
                         </View>
                     </TouchableOpacity>
@@ -68,10 +68,11 @@ const HomeScreen = ({ navigation }) => {
                         style={styles.profileBtn}
                         onPress={() => navigation.navigate('Profile')}
                     >
-                        <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100' }}
-                            style={styles.avatar}
-                        />
+                        <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface }]}>
+                            <Text style={{ ...Typography.h4, color: Colors.primary }}>
+                                {user?.name?.charAt(0) || 'U'}
+                            </Text>
+                        </View>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>

@@ -12,12 +12,14 @@ import { useAuthStore } from '../store/authStore';
 
 // Screens
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
+import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import SearchScreen from '../screens/search/SearchScreen';
 import StoreDetailScreen from '../screens/store/StoreDetailScreen';
 import CartScreen from '../screens/cart/CartScreen';
 import OrderTrackingScreen from '../screens/orders/OrderTrackingScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import AddressSelectScreen from '../screens/profile/AddressSelectScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 
 // Cart badge
@@ -80,6 +82,7 @@ const MainTabs = () => {
 // ── Root Stack Navigator ──────────────────────────────
 const RootNavigator = () => {
     const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+    const isProfileComplete = useAuthStore(s => s.isProfileComplete);
 
     return (
         <NavigationContainer
@@ -104,6 +107,8 @@ const RootNavigator = () => {
             <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
                 {!isAuthenticated ? (
                     <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                ) : !isProfileComplete ? (
+                    <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
                 ) : (
                     <>
                         <Stack.Screen name="Main" component={MainTabs} />
@@ -111,7 +116,7 @@ const RootNavigator = () => {
                         <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ animation: 'slide_from_bottom' }} />
                         <Stack.Screen name="Notifications" component={NotificationsScreen} />
                         <Stack.Screen name="SearchModal" component={SearchScreen} options={{ animation: 'slide_from_bottom' }} />
-                        <Stack.Screen name="AddressSelect" component={ProfileScreen} options={{ animation: 'slide_from_bottom' }} />
+                        <Stack.Screen name="AddressSelect" component={AddressSelectScreen} options={{ animation: 'slide_from_bottom' }} />
                         <Stack.Screen name="OrderHistory" component={ProfileScreen} />
                         <Stack.Screen name="StoreList" component={HomeScreen} />
                         <Stack.Screen name="Support" component={ProfileScreen} />

@@ -11,6 +11,7 @@ import {
     ScrollView,
     StatusBar,
     Linking,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,16 +19,34 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
 import AppButton from '../../components/common/AppButton';
 import { ORDER_STATUS_STEPS, DELIVERY_PARTNER } from '../../data/mockData';
+import { supabase } from '../../lib/supabase';
 
 const STATUS_STEPS = ORDER_STATUS_STEPS;
 const MOCK_PARTNER = DELIVERY_PARTNER;
 
 const OrderTrackingScreen = ({ route, navigation }) => {
     const { orderId } = route.params || {};
+    const [order, setOrder] = useState(null);
     const [currentStep, setCurrentStep] = useState(1);
     const [eta, setEta] = useState(14);
+    const [loading, setLoading] = useState(true);
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const mapMoveAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const fetchOrder = async () => {
+            if (!orderId) { setLoading(false); return; }
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', orderId)
+                .single();
+            if (data) setOrder(data);
+            setLoading(false);
+        };
+        fetchOrder();
+    }, [orderId]);
 
     // Simulate order progression
     useEffect(() => {
@@ -67,6 +86,16 @@ const OrderTrackingScreen = ({ route, navigation }) => {
         outputRange: [0, 120], // Adjusted relative to starting position
     });
 
+    if (loading) {
+        return (
+            <SafeAreaView style={[styles.safe, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </SafeAreaView>
+        );
+    }
+
+    const displayOrderId = order?.id ? order.id.slice(0, 8).toUpperCase() : (orderId ? orderId.slice(0, 8).toUpperCase() : 'ORD001');
+
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
@@ -78,7 +107,7 @@ const OrderTrackingScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
                 <View>
                     <Text style={styles.headerTitle}>Tracking Order</Text>
-                    <Text style={styles.orderId}>#{orderId || 'ORD001'}</Text>
+                    <Text style={styles.orderId}>#{displayOrderId}</Text>
                 </View>
                 <View style={styles.liveChip}>
                     <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
