@@ -1,68 +1,38 @@
-// ─────────────────────────────────────────────
-//  Component: FeaturedStoreCard (Swim.ai Premium)
-// ─────────────────────────────────────────────
 import React from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    Image,
-    Dimensions,
-} from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 
-const { width: W } = Dimensions.get('window');
-const CARD_W = W * 0.75;
-const CARD_H = 340;
+const { width } = Dimensions.get('window');
+const cardWidth = width * 0.74;
 
 const FeaturedStoreCard = ({ store, onPress }) => {
     return (
-        <TouchableOpacity
-            onPress={onPress}
-            activeOpacity={0.9}
-            style={styles.container}
-        >
-            <View style={styles.card}>
-                <Image
-                    source={typeof store.image === 'string' ? { uri: store.image } : store.image}
-                    style={styles.image}
-                    resizeMode="cover"
-                />
-
-                <LinearGradient
-                    colors={['transparent', 'rgba(4,4,10,0.95)', '#04040A']}
-                    locations={[0, 0.7, 1]}
-                    style={styles.overlay}
-                />
-
-                <View style={styles.content}>
-                    <View style={styles.badgeRow}>
-                        <View style={styles.ratingBadge}>
-                            <Ionicons name="star" size={12} color={Colors.star} />
-                            <Text style={styles.ratingText}>{store.rating}</Text>
-                        </View>
-                        {store.tags?.[0] && (
-                            <View style={styles.tagBadge}>
-                                <Text style={styles.tagText}>{store.tags[0]}</Text>
-                            </View>
-                        )}
+        <TouchableOpacity onPress={onPress} activeOpacity={0.92} style={styles.container}>
+            <Image
+                source={typeof store.image === 'string' ? { uri: store.image } : store.image}
+                style={styles.image}
+                resizeMode="cover"
+            />
+            <View style={styles.overlay} />
+            <View style={styles.content}>
+                <View style={styles.badgeRow}>
+                    <View style={styles.ratingBadge}>
+                        <Ionicons name="star" size={12} color={Colors.star} />
+                        <Text style={styles.badgeText}>{store.rating}</Text>
                     </View>
-
-                    <Text style={styles.name}>{store.name}</Text>
-                    <Text style={styles.location}>{store.location}</Text>
-
-                    <View style={styles.footer}>
-                        <View style={styles.meta}>
-                            <Ionicons name="time" size={14} color={Colors.primaryLight} />
-                            <Text style={styles.metaText}>{store.deliveryTime}</Text>
+                    {store.tags?.[0] ? (
+                        <View style={styles.tagBadge}>
+                            <Text style={styles.tagText}>{store.tags[0]}</Text>
                         </View>
-                        <TouchableOpacity style={styles.actionBtn}>
-                            <Ionicons name="arrow-forward" size={18} color={Colors.white} />
-                        </TouchableOpacity>
+                    ) : null}
+                </View>
+                <Text style={styles.name}>{store.name}</Text>
+                <Text style={styles.meta}>{store.location}</Text>
+                <View style={styles.footer}>
+                    <Text style={styles.time}>{store.deliveryTime}</Text>
+                    <View style={styles.action}>
+                        <Ionicons name="arrow-forward" size={18} color={Colors.primary} />
                     </View>
                 </View>
             </View>
@@ -72,100 +42,87 @@ const FeaturedStoreCard = ({ store, onPress }) => {
 
 const styles = StyleSheet.create({
     container: {
-        width: CARD_W,
+        width: cardWidth,
+        height: 324,
         marginRight: Spacing.base,
-        height: CARD_H,
-    },
-    card: {
-        flex: 1,
         borderRadius: BorderRadius['3xl'],
         overflow: 'hidden',
         backgroundColor: Colors.card,
-        borderWidth: 1,
-        borderColor: Colors.glassBorder,
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        elevation: 8,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 18,
+        elevation: 9,
     },
     image: {
         width: '100%',
         height: '100%',
     },
     overlay: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '70%',
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(36,26,18,0.18)',
     },
     content: {
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: Spacing.xl,
+        left: 18,
+        right: 18,
+        bottom: 18,
+        backgroundColor: 'rgba(255,255,255,0.86)',
+        borderRadius: BorderRadius['2xl'],
+        padding: Spacing.base,
     },
     badgeRow: {
         flexDirection: 'row',
-        gap: Spacing.sm,
-        marginBottom: Spacing.sm,
+        gap: 8,
+        marginBottom: 10,
     },
     ratingBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: '#FFF4DF',
+        borderRadius: BorderRadius.full,
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: BorderRadius.full,
     },
-    ratingText: {
+    badgeText: {
         ...Typography.labelSmall,
-        color: Colors.white,
+        color: Colors.textPrimary,
     },
     tagBadge: {
-        backgroundColor: 'rgba(0,150,199,0.3)',
+        backgroundColor: '#FDF0E1',
+        borderRadius: BorderRadius.full,
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: BorderRadius.full,
     },
     tagText: {
         ...Typography.labelSmall,
-        color: Colors.primaryLight,
-        fontWeight: '700',
+        color: Colors.primaryDark,
     },
     name: {
-        ...Typography.h2,
-        color: Colors.white,
-        fontSize: 24,
-    },
-    location: {
-        ...Typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginTop: 2,
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: Spacing.lg,
+        ...Typography.h3,
+        color: Colors.textPrimary,
     },
     meta: {
+        ...Typography.bodySmall,
+        color: Colors.textSecondary,
+        marginTop: 4,
+    },
+    footer: {
+        marginTop: Spacing.base,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        justifyContent: 'space-between',
     },
-    metaText: {
+    time: {
         ...Typography.labelMedium,
-        color: Colors.white,
+        color: Colors.primary,
     },
-    actionBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: Colors.primary,
+    action: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#FFF4DF',
         alignItems: 'center',
         justifyContent: 'center',
     },

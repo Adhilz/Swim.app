@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DeliverAnything - Discovery</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@400,FILL@0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#f48c25",
+                        "background-light": "#f8f7f5",
+                        "background-dark": "#221910",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                    boxShadow: {
+                        'clay': 'inset 0 2px 4px 0 rgba(255, 255, 255, 0.3), 0 10px 20px -5px rgba(0, 0, 0, 0.1)',
+                        'clay-primary': 'inset 0 4px 8px 0 rgba(255, 255, 255, 0.4), 0 12px 24px -8px rgba(244, 140, 37, 0.4)',
+                        'clay-inner': 'inset 2px 2px 8px rgba(0,0,0,0.05), inset -2px -2px 8px rgba(255,255,255,0.8)'
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .clay-card {
+            background: #ffffff;
+            box-shadow: 8px 8px 16px #e0dfdd, -8px -8px 16px #ffffff, inset 0 -2px 4px rgba(0,0,0,0.02);
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+        .clay-button {
+            box-shadow: 4px 4px 10px rgba(0,0,0,0.05), inset 2px 2px 4px rgba(255,255,255,0.5), inset -2px -2px 4px rgba(0,0,0,0.02);
+        }
+        .clay-icon-container {
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            box-shadow: 4px 4px 8px #d1d1d1, -4px -4px 8px #ffffff;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-background-light dark:bg-background-dark overflow-x-hidden pb-24">
+<!-- Header -->
+<div class="flex items-center bg-transparent p-6 pb-2 justify-between">
+<div class="flex flex-col">
+<p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Deliver to</p>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-primary text-sm">location_on</span>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight">Central Park, NY</h2>
+<span class="material-symbols-outlined text-slate-400">expand_more</span>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex size-11 items-center justify-center rounded-full clay-card text-slate-700">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="size-11 rounded-full border-2 border-white shadow-sm overflow-hidden bg-primary/10">
+<img class="w-full h-full object-cover" data-alt="User profile avatar smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxiK4UELD8zo91zYFbFxLQamx4szjD5xprcqiAQonrLbeHKUO8AYT9wFK5eoW8TiAqhGOwlJ3xjkcjEMQZL2efQbt2rSA5Wdn0Z1Nfx9QDjzCOCTs6wLPqN9t71rIsdidp4noblKpp-lbACH3YJdAuYGzjqlAOpMlgNiGblhY0AuuEQNB2JV9nr_uXbkLw_d5IkuugC1VVhLkQKAuJyIAKpdPCtmofK5Od2Gtcw6Y9yK7uVRSG7NK75Yc_to81ZsCahmdYqd4R9TA"/>
+</div>
+</div>
+</div>
+<!-- Search Bar -->
+<div class="px-6 py-4">
+<div class="clay-card rounded-xl flex items-center px-4 h-14 bg-white/80 backdrop-blur-sm">
+<span class="material-symbols-outlined text-slate-400 mr-3">search</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-slate-800 placeholder:text-slate-400 font-medium" placeholder="What are you looking for?" type="text"/>
+<button class="bg-primary/10 p-2 rounded-lg">
+<span class="material-symbols-outlined text-primary text-xl">tune</span>
+</button>
+</div>
+</div>
+<!-- Active Delivery Card -->
+<div class="px-6 py-4">
+<div class="bg-primary rounded-2xl p-5 shadow-clay-primary relative overflow-hidden">
+<div class="absolute -right-4 -top-4 size-24 bg-white/10 rounded-full blur-2xl"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<span class="inline-block px-3 py-1 bg-white/20 rounded-full text-white text-[10px] font-bold uppercase tracking-widest mb-2">Active Delivery</span>
+<h3 class="text-white text-xl font-extrabold">Arriving in 12 mins</h3>
+</div>
+<div class="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+<span class="material-symbols-outlined text-white">local_shipping</span>
+</div>
+</div>
+<div class="flex items-center gap-3 bg-white/10 p-3 rounded-xl backdrop-blur-sm">
+<div class="size-10 rounded-lg bg-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary">fastfood</span>
+</div>
+<div class="flex-1">
+<p class="text-white text-sm font-bold leading-tight">Burger King Express</p>
+<p class="text-white/70 text-xs">Order #7219 • Out for delivery</p>
+</div>
+<button class="bg-white text-primary text-xs font-bold px-4 py-2 rounded-lg clay-button">Track</button>
+</div>
+</div>
+</div>
+<!-- Categories -->
+<div class="px-6 pt-4">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-xl font-extrabold">Categories</h3>
+<button class="text-primary font-bold text-sm">See all</button>
+</div>
+<div class="grid grid-cols-3 gap-4"><!-- Food -->
+<div class="flex flex-col items-center gap-2">
+<div class="clay-card size-20 rounded-2xl flex items-center justify-center group cursor-pointer active:scale-95 transition-transform">
+<div class="bg-orange-100 size-12 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-orange-500" style="font-variation-settings: 'FILL' 1">lunch_dining</span>
+</div>
+</div>
+<span class="text-sm font-bold text-slate-700">Food</span>
+</div>
+<!-- Groceries -->
+<div class="flex flex-col items-center gap-2">
+<div class="clay-card size-20 rounded-2xl flex items-center justify-center group cursor-pointer active:scale-95 transition-transform">
+<div class="bg-green-100 size-12 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-green-500" style="font-variation-settings: 'FILL' 1">shopping_basket</span>
+</div>
+</div>
+<span class="text-sm font-bold text-slate-700">Groceries</span>
+</div>
+<!-- Pharmacy -->
+<div class="flex flex-col items-center gap-2">
+<div class="clay-card size-20 rounded-2xl flex items-center justify-center group cursor-pointer active:scale-95 transition-transform">
+<div class="bg-red-100 size-12 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-red-500" style="font-variation-settings: 'FILL' 1">medical_services</span>
+</div>
+</div>
+<span class="text-sm font-bold text-slate-700">Pharmacy</span>
+</div>
+<!-- Clothes -->
+<div class="flex flex-col items-center gap-2">
+<div class="clay-card size-20 rounded-2xl flex items-center justify-center group cursor-pointer active:scale-95 transition-transform">
+<div class="bg-rose-100 size-12 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-rose-500" style="font-variation-settings: 'FILL' 1">checkroom</span>
+</div>
+</div>
+<span class="text-sm font-bold text-slate-700">Clothes</span>
+</div>
+<!-- Electronics -->
+<div class="flex flex-col items-center gap-2">
+<div class="clay-card size-20 rounded-2xl flex items-center justify-center group cursor-pointer active:scale-95 transition-transform">
+<div class="bg-cyan-100 size-12 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-cyan-500" style="font-variation-settings: 'FILL' 1">devices</span>
+</div>
+</div>
+<span class="text-sm font-bold text-slate-700">Electronics</span>
+</div>
+<!-- Anything Else -->
+<div class="flex flex-col items-center gap-2">
+<div class="clay-card size-20 rounded-2xl flex items-center justify-center group cursor-pointer active:scale-95 transition-transform">
+<div class="bg-purple-100 size-12 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-purple-500" style="font-variation-settings: 'FILL' 1">auto_awesome</span>
+</div>
+</div>
+<span class="text-sm font-bold text-slate-700">Anything</span>
+</div></div>
+</div>
+<!-- Top Picks Section -->
+<div class="px-6 py-6">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-xl font-extrabold">Top Picks for You</h3>
+<button class="text-primary font-bold text-sm">View all</button>
+</div>
+<div class="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 scrollbar-hide">
+<!-- Pick Card 1 -->
+<div class="min-w-[240px] clay-card rounded-2xl overflow-hidden p-3 group">
+<div class="relative h-32 rounded-xl overflow-hidden mb-3">
+<img class="w-full h-full object-cover" data-alt="Delicious gourmet burger with fries" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANgJlwjmsjNguF7HT8mEGLR3R_uRQkGJl1uHuWYOvNbeXcPu51g1ZubdOznKkaf4uL4vM8Ub425FxzFl5C0y9CrjlZYvtFQ2A46Znouie8sX2jv6JuBHeSFqmFIVYpKPTavuy7JwL1nqGuUOSAxQkvfK-iiDZO1yiXJXVvKsCz6Mh6X0R1Dc91dlw67FdRDn3JqrWSGKjfwHThgr7QTW9OtYon-jDn74Rwxi92lS8w2c3eHdAduw6jUm9IG2_TxkNuQpiasKVhurI"/>
+<div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-yellow-500 text-xs" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="text-[10px] font-bold">4.8</span>
+</div>
+</div>
+<h4 class="font-bold text-slate-800">The Burger House</h4>
+<p class="text-slate-500 text-xs mb-2">American • Burgers • $$</p>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="text-[10px] font-bold">20-30 min</span>
+</div>
+<span class="text-[10px] font-bold text-green-600">Free Delivery</span>
+</div>
+</div>
+<!-- Pick Card 2 -->
+<div class="min-w-[240px] clay-card rounded-2xl overflow-hidden p-3 group">
+<div class="relative h-32 rounded-xl overflow-hidden mb-3">
+<img class="w-full h-full object-cover" data-alt="Freshly baked pepperoni pizza" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJhlPonKQItB4OsVjnEkCG3INMeOwln_iafewyGMzt0wwGQ00n2Xv5hMFzX1aI-mhR9NxmO3xZNAMOTIRSyXCyPsxGOvsp193Ehjxa3HTfgiR59lziwf8E3LaccRpzyiILrjoiIvTKpoAczYs9CGiRmaG4Svx390us8LHI-6gLwTrtDLVRcloFJYSz33t4FriJTSY8RCDUI45hB7u6rpRvR3_K0GAzfEGBd0V5LJLs0rokcTG1t4CGEaWNSt-MWUTUKqkix3rRd6o"/>
+<div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-yellow-500 text-xs" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="text-[10px] font-bold">4.9</span>
+</div>
+</div>
+<h4 class="font-bold text-slate-800">Pizza Romano</h4>
+<p class="text-slate-500 text-xs mb-2">Italian • Pizza • $$</p>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="text-[10px] font-bold">15-25 min</span>
+</div>
+<span class="text-[10px] font-bold text-green-600">50% Off</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<div class="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-50">
+<div class="mx-6 mb-6 px-4 py-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg clay-card rounded-2xl flex items-center justify-between">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">home</span>
+<span class="text-[10px] font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="text-[10px] font-bold">Orders</span>
+</a>
+<a class="relative -top-10 size-14 rounded-full bg-primary flex items-center justify-center text-white shadow-clay-primary border-4 border-background-light dark:border-background-dark active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined text-2xl font-bold">add</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="text-[10px] font-bold">Wallet</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold">Profile</span>
+</a>
+</div>
+</div>
+</div>
+</body></html>

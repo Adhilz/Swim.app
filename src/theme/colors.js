@@ -1,84 +1,58 @@
-// ─────────────────────────────────────────────
-//  HyperLocal Delivery App – Color System
-// ─────────────────────────────────────────────
-
 export const Colors = {
-    // ── Primary Palette ──────────────────────
-    // ── Primary Palette (Swim.ai Neon Sea) ──
-    primary: '#00D4FF',
-    primaryDark: '#0055FF',
-    primaryLight: '#80E5FF',
-    primaryGradient: ['#0055FF', '#00D4FF'],
-
-    // ── Secondary ────────────────────────────
-    secondary: '#7B2CBF',
-    secondaryLight: '#9D4EDD',
-
-    // ── Backgrounds (Deep Void) ──────────────
-    background: '#04040A',
-    surface: '#0A0A14',
-    surfaceLight: '#121220',
-    card: '#151525',
-    cardHover: '#1F1F35',
-
-    // ── Text ─────────────────────────────────
-    textPrimary: '#F0F6FC',
-    textSecondary: '#8B949E',
-    textMuted: '#484F58',
-    textInverse: '#0D1117',
-
-    // ── Semantic ─────────────────────────────
-    success: '#3FB950',
-    successLight: '#2EA043',
-    warning: '#D29922',
-    error: '#F85149',
-    info: '#58A6FF',
-
-    // ── Borders & Dividers ───────────────────
-    border: '#30363D',
-    divider: '#21262D',
-
-    // ── Category Colors (Updated) ─────────────
-    food: '#00B4D8',
-    pharmacy: '#3FB950',
-    grocery: '#58A6FF',
-    shopping: '#BC8CF2',
-    electronics: '#1F6FEB',
-
-    // ── Rating & Status ───────────────────────
-    star: '#E3B341',
-    delivery: '#3FB950',
-    statusPending: '#D29922',
-    statusActive: '#3FB950',
-    statusCancelled: '#F85149',
-    statusDelivered: '#6E7681',
-
-    // ── Overlay & Shadow ─────────────────────
-    overlay: 'rgba(0, 0, 0, 0.7)',
-    shadow: 'rgba(0, 0, 0, 0.5)',
-    shimmer: '#161B22',
-    shimmerHighlight: '#21262D',
-
-    // ── Glassmorphism ────────────────────────
-    glass: 'rgba(255, 255, 255, 0.03)',
-    glassStrong: 'rgba(255, 255, 255, 0.08)',
-    glassBorder: 'rgba(255, 255, 255, 0.15)',
-
-    // ── Transparent ──────────────────────────
+    primary: '#F48C25',
+    primaryDark: '#D96C08',
+    primaryLight: '#F8B15F',
+    primaryGradient: ['#F6A64B', '#F48C25'],
+    secondary: '#8E6D4E',
+    secondaryLight: '#C9AF98',
+    background: '#F8F7F5',
+    surface: '#FFFDFC',
+    surfaceLight: '#F1ECE6',
+    card: '#FFFFFF',
+    cardHover: '#F7F2EE',
+    textPrimary: '#241A12',
+    textSecondary: '#7D6856',
+    textMuted: '#B6A89C',
+    textInverse: '#FFFDFC',
+    success: '#2E9B59',
+    successLight: '#4EB977',
+    warning: '#D89A2B',
+    error: '#D85C46',
+    info: '#4B8BF4',
+    border: '#ECE3DB',
+    divider: '#E4D8CC',
+    food: '#F48C25',
+    pharmacy: '#4D9C6D',
+    grocery: '#69A861',
+    shopping: '#C56FB2',
+    electronics: '#6388D8',
+    star: '#F3B53F',
+    delivery: '#2E9B59',
+    statusPending: '#D89A2B',
+    statusActive: '#2E9B59',
+    statusCancelled: '#D85C46',
+    statusDelivered: '#9B8A7D',
+    overlay: 'rgba(36, 26, 18, 0.35)',
+    shadow: 'rgba(102, 76, 50, 0.16)',
+    shimmer: '#F3EEE8',
+    shimmerHighlight: '#FFFFFF',
+    glass: 'rgba(255, 255, 255, 0.72)',
+    glassStrong: 'rgba(255, 255, 255, 0.88)',
+    glassBorder: 'rgba(255, 255, 255, 0.92)',
     transparent: 'transparent',
     white: '#FFFFFF',
     black: '#000000',
 };
 
 export const Gradients = {
-    primary: ['#F47B25', '#FF6B00'],
-    dark: ['#1A1A2E', '#0F0F1A'],
-    card: ['#1E1E32', '#252540'],
-    hero: ['transparent', 'rgba(15,15,26,0.95)'],
-    success: ['#22C55E', '#16A34A'],
-    food: ['#F47B25', '#E55A00'],
-    pharmacy: ['#22C55E', '#16A34A'],
-    grocery: ['#3B82F6', '#1D4ED8'],
-    shopping: ['#A855F7', '#7C3AED'],
-    electronics: ['#06B6D4', '#0284C7'],
+    primary: ['#F6A64B', '#F48C25'],
+    dark: ['#FFFDFC', '#F3EDE7'],
+    card: ['#FFFFFF', '#F4EEE8'],
+    hero: ['rgba(255,255,255,0.2)', 'rgba(244,140,37,0.08)'],
+    success: ['#4EB977', '#2E9B59'],
+    food: ['#F6A64B', '#F48C25'],
+    pharmacy: ['#6EB48A', '#4D9C6D'],
+    grocery: ['#8BC47A', '#69A861'],
+    shopping: ['#D88AC5', '#C56FB2'],
+    electronics: ['#8CA7E8', '#6388D8'],
 };

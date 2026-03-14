@@ -1,68 +1,47 @@
-// ─────────────────────────────────────────────
-//  Component: ProductCard (Swim.ai Premium)
-// ─────────────────────────────────────────────
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
+import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 import { useCartStore } from '../../store/cartStore';
 
 const ProductCard = ({ product, storeId, storeName }) => {
-    const addItem = useCartStore(s => s.addItem);
-    const removeItem = useCartStore(s => s.removeItem);
-    const getItemQuantity = useCartStore(s => s.getItemQuantity);
-
+    const addItem = useCartStore(state => state.addItem);
+    const removeItem = useCartStore(state => state.removeItem);
+    const getItemQuantity = useCartStore(state => state.getItemQuantity);
     const quantity = getItemQuantity(product.id);
 
     return (
         <View style={styles.card}>
-            {/* Header: Visuals */}
-            <View style={styles.visuals}>
-                <Image
-                    source={typeof product.image === 'string' ? { uri: product.image } : product.image}
-                    style={styles.image}
-                    resizeMode="cover"
-                />
-                <View style={styles.overlay}>
-                    {product.isBestseller && (
-                        <View style={styles.badge}>
-                            <Ionicons name="sparkles" size={10} color={Colors.star} />
-                            <Text style={styles.badgeText}>Top Choice</Text>
-                        </View>
-                    )}
-                </View>
-            </View>
-
-            {/* Content: Info */}
-            <View style={styles.info}>
-                <View style={styles.nameRow}>
+            <Image
+                source={typeof product.image === 'string' ? { uri: product.image } : product.image}
+                style={styles.image}
+                resizeMode="cover"
+            />
+            <View style={styles.content}>
+                <View style={styles.titleRow}>
                     <Text style={styles.name}>{product.name}</Text>
-                    <Text style={styles.price}>₹{product.price}</Text>
+                    <Text style={styles.price}>Rs {product.price}</Text>
                 </View>
-
-                <Text style={styles.description} numberOfLines={2}>
-                    {product.description}
-                </Text>
-
+                <Text style={styles.description} numberOfLines={2}>{product.description}</Text>
                 <View style={styles.footer}>
-                    <View style={styles.rating}>
+                    <View style={styles.ratingWrap}>
                         <Ionicons name="star" size={12} color={Colors.star} />
                         <Text style={styles.ratingText}>{product.rating}</Text>
                     </View>
 
                     {quantity === 0 ? (
-                        <TouchableOpacity style={styles.addBtn} onPress={() => addItem(product, storeId, storeName)}>
-                            <Text style={styles.addBtnText}>Collect</Text>
+                        <TouchableOpacity style={styles.addButton} onPress={() => addItem(product, storeId, storeName)}>
+                            <Text style={styles.addButtonText}>Add</Text>
                             <Ionicons name="add" size={16} color={Colors.white} />
                         </TouchableOpacity>
                     ) : (
-                        <View style={styles.quantityPicker}>
-                            <TouchableOpacity onPress={() => removeItem(product.id)} style={styles.qtyBtn}>
-                                <Ionicons name="remove" size={16} color={Colors.white} />
+                        <View style={styles.counter}>
+                            <TouchableOpacity style={styles.counterBtn} onPress={() => removeItem(product.id)}>
+                                <Ionicons name="remove" size={16} color={Colors.primary} />
                             </TouchableOpacity>
-                            <Text style={styles.qtyText}>{quantity}</Text>
-                            <TouchableOpacity onPress={() => addItem(product, storeId, storeName)} style={styles.qtyBtn}>
-                                <Ionicons name="add" size={16} color={Colors.white} />
+                            <Text style={styles.counterText}>{quantity}</Text>
+                            <TouchableOpacity style={styles.counterBtn} onPress={() => addItem(product, storeId, storeName)}>
+                                <Ionicons name="add" size={16} color={Colors.primary} />
                             </TouchableOpacity>
                         </View>
                     )}
@@ -74,83 +53,93 @@ const ProductCard = ({ product, storeId, storeName }) => {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: Colors.card,
+        backgroundColor: 'rgba(255,255,255,0.82)',
         borderRadius: BorderRadius['2xl'],
-        marginBottom: Spacing.lg,
-        borderWidth: 1,
-        borderColor: Colors.glassBorder,
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 10,
-        elevation: 4,
         overflow: 'hidden',
+        marginBottom: Spacing.base,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 18,
+        elevation: 8,
     },
-    visuals: {
-        height: 140,
-        backgroundColor: Colors.card,
+    image: {
+        width: '100%',
+        height: 158,
     },
-    image: { width: '100%', height: '100%' },
-    overlay: {
-        position: 'absolute',
-        top: 12,
-        left: 12,
+    content: {
+        padding: Spacing.base,
     },
-    badge: {
+    titleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: Spacing.sm,
+    },
+    name: {
+        ...Typography.labelLarge,
+        color: Colors.textPrimary,
+        flex: 1,
+    },
+    price: {
+        ...Typography.labelLarge,
+        color: Colors.primary,
+    },
+    description: {
+        ...Typography.bodySmall,
+        color: Colors.textSecondary,
+        marginTop: 6,
+    },
+    footer: {
+        marginTop: Spacing.base,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    ratingWrap: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: 'rgba(1,4,9,0.7)',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: BorderRadius.sm,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
     },
-    badgeText: { ...Typography.labelSmall, color: Colors.white, fontSize: 10 },
-
-    info: { padding: Spacing.lg },
-    nameRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 6,
+    ratingText: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
     },
-    name: { ...Typography.h5, color: Colors.white, flex: 1, marginRight: 8 },
-    price: { ...Typography.h5, color: Colors.primaryLight },
-
-    description: { ...Typography.bodySmall, color: Colors.textSecondary, marginBottom: Spacing.lg, lineHeight: 18 },
-
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    rating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    ratingText: { ...Typography.caption, color: Colors.textMuted },
-
-    addBtn: {
+    addButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 4,
         backgroundColor: Colors.primary,
-        paddingHorizontal: 16,
+        paddingHorizontal: 14,
         paddingVertical: 8,
         borderRadius: BorderRadius.full,
-        gap: 4,
     },
-    addBtnText: { ...Typography.labelMedium, color: Colors.white },
-
-    quantityPicker: {
+    addButtonText: {
+        ...Typography.labelMedium,
+        color: Colors.white,
+    },
+    counter: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.primaryDark,
+        gap: 8,
+        backgroundColor: '#FFF4DF',
+        paddingHorizontal: 8,
+        paddingVertical: 6,
         borderRadius: BorderRadius.full,
-        paddingHorizontal: 4,
-        paddingVertical: 4,
-        gap: 12,
     },
-    qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-    qtyText: { ...Typography.labelLarge, color: Colors.white, minWidth: 16, textAlign: 'center' },
+    counterBtn: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: Colors.card,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    counterText: {
+        ...Typography.labelMedium,
+        color: Colors.textPrimary,
+        minWidth: 18,
+        textAlign: 'center',
+    },
 });
 
 export default ProductCard;

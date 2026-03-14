@@ -70,6 +70,7 @@ npm install
 # 3. Supply your Supabase Keys in an `.env` file
 EXPO_PUBLIC_SUPABASE_URL=YOUR_URL
 EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_KEY
+EXPO_PUBLIC_GEOAPIFY_API_KEY=YOUR_GEOAPIFY_KEY
 
 # 4. Start the development server
 npm start

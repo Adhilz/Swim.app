@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     TextInput,
     Alert,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,22 +17,111 @@ import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 import AppButton from '../../components/common/AppButton';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
+import * as Location from 'expo-location';
+import { buildGeoapifyAutocompleteUrl, buildGeoapifyStaticMapUrl } from '../../lib/geoapify';
+
+const ERNAKULAM_CENTER = {
+    latitude: 9.9816,
+    longitude: 76.2999,
+};
+
+const normalizeAddress = addr => ({
+    id: addr.id,
+    type: addr.type,
+    addressLine1: addr.address_line1 || addr.addressLine1,
+    addressLine2: addr.address_line2 || addr.addressLine2,
+    lat: addr.lat,
+    lng: addr.lng,
+});
 
 const AddressSelectScreen = ({ navigation }) => {
-    const { user, selectedAddress, setSelectedAddress } = useAuthStore();
+    const user = useAuthStore(state => state.user);
+    const selectedAddress = useAuthStore(state => state.selectedAddress);
+    const setSelectedAddress = useAuthStore(state => state.setSelectedAddress);
     const [addresses, setAddresses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
-    
-    // New address state
     const [type, setType] = useState('Home');
     const [addressLine1, setAddressLine1] = useState('');
     const [addressLine2, setAddressLine2] = useState('');
+    const [latitude, setLatitude] = useState(null);
+    const [longitude, setLongitude] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [locating, setLocating] = useState(false);
+    const [searching, setSearching] = useState(false);
+    const [locationQuery, setLocationQuery] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
 
     useEffect(() => {
         if (user) fetchAddresses();
     }, [user]);
+
+    useEffect(() => {
+        let isActive = true;
+
+        const runSearch = async () => {
+            if (!locationQuery.trim() || locationQuery.trim().length < 3) {
+                setSuggestions([]);
+                return;
+            }
+
+            const url = buildGeoapifyAutocompleteUrl(`${locationQuery.trim()}, Ernakulam, Kerala`);
+
+            if (!url) {
+                setSuggestions([]);
+                return;
+            }
+
+            setSearching(true);
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!isActive) {
+                    return;
+                }
+
+                const nextSuggestions = (data.features || []).map(item => ({
+                    id: item.properties.place_id || item.properties.formatted,
+                    title: item.properties.address_line1 || item.properties.name || item.properties.street || 'Pinned location',
+                    subtitle: item.properties.formatted || item.properties.address_line2 || 'Ernakulam, Kerala',
+                    lat: item.properties.lat,
+                    lng: item.properties.lon,
+                }));
+
+                setSuggestions(nextSuggestions);
+            } catch {
+                if (isActive) {
+                    setSuggestions([]);
+                }
+            } finally {
+                if (isActive) {
+                    setSearching(false);
+                }
+            }
+        };
+
+        const timeout = setTimeout(runSearch, 350);
+
+        return () => {
+            isActive = false;
+            clearTimeout(timeout);
+        };
+    }, [locationQuery]);
+
+    const previewMapUrl = useMemo(() => {
+        const lat = latitude ?? selectedAddress?.lat ?? ERNAKULAM_CENTER.latitude;
+        const lng = longitude ?? selectedAddress?.lng ?? ERNAKULAM_CENTER.longitude;
+
+        return buildGeoapifyStaticMapUrl({
+            latitude: lat,
+            longitude: lng,
+            zoom: latitude != null || selectedAddress?.lat != null ? 15 : 12,
+            width: 1200,
+            height: 700,
+            markerColor: Colors.primary,
+        });
+    }, [latitude, longitude, selectedAddress?.lat, selectedAddress?.lng]);
 
     const fetchAddresses = async () => {
         setLoading(true);
@@ -44,17 +134,59 @@ const AddressSelectScreen = ({ navigation }) => {
         if (!error && data) {
             setAddresses(data);
             if (!selectedAddress && data.length > 0) {
-                // Autoselect the first address if none selected
                 const defaultAddr = data.find(a => a.is_default) || data[0];
-                setSelectedAddress({
-                    id: defaultAddr.id,
-                    type: defaultAddr.type,
-                    addressLine1: defaultAddr.address_line1,
-                    addressLine2: defaultAddr.address_line2,
-                });
+                setSelectedAddress(normalizeAddress(defaultAddr));
             }
         }
         setLoading(false);
+    };
+
+    const handleUseCurrentLocation = async () => {
+        setLocating(true);
+        try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+
+            if (status !== 'granted') {
+                Alert.alert('Location Permission Needed', 'Please allow location access to use your current location.');
+                return;
+            }
+
+            const currentPosition = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+
+            const reverse = await Location.reverseGeocodeAsync({
+                latitude: currentPosition.coords.latitude,
+                longitude: currentPosition.coords.longitude,
+            });
+
+            const place = reverse[0];
+            const line1 = place?.name || place?.street || 'Current Location';
+            const line2 = [place?.district || place?.subregion, place?.city || 'Ernakulam', place?.region || 'Kerala']
+                .filter(Boolean)
+                .join(', ');
+
+            setLatitude(currentPosition.coords.latitude);
+            setLongitude(currentPosition.coords.longitude);
+            setAddressLine1(line1);
+            setAddressLine2(line2);
+            setLocationQuery(`${line1}, ${line2}`);
+            setIsAdding(true);
+            setSuggestions([]);
+        } catch (error) {
+            Alert.alert('Location Error', error.message || 'Unable to fetch your current location.');
+        } finally {
+            setLocating(false);
+        }
+    };
+
+    const applySuggestion = suggestion => {
+        setAddressLine1(suggestion.title);
+        setAddressLine2(suggestion.subtitle);
+        setLatitude(suggestion.lat);
+        setLongitude(suggestion.lng);
+        setLocationQuery(`${suggestion.title}, ${suggestion.subtitle}`);
+        setSuggestions([]);
     };
 
     const handleSaveAddress = async () => {
@@ -64,7 +196,7 @@ const AddressSelectScreen = ({ navigation }) => {
         }
         
         setSaving(true);
-        const newAddr = {
+        const baseAddr = {
             user_id: user.id,
             type,
             address_line1: addressLine1,
@@ -72,27 +204,45 @@ const AddressSelectScreen = ({ navigation }) => {
             is_default: addresses.length === 0,
         };
 
-        const { data, error } = await supabase
+        let response = await supabase
             .from('addresses')
-            .insert([newAddr])
+            .insert([{
+                ...baseAddr,
+                lat: latitude,
+                lng: longitude,
+            }])
             .select()
             .single();
+
+        if (response.error?.message?.includes('lat') || response.error?.message?.includes('lng')) {
+            response = await supabase
+                .from('addresses')
+                .insert([baseAddr])
+                .select()
+                .single();
+        }
             
         setSaving(false);
+
+        const { data, error } = response;
 
         if (error) {
             Alert.alert('Error', error.message);
         } else {
-            setAddresses([data, ...addresses]);
-            setSelectedAddress({
-                id: data.id,
-                type: data.type,
-                addressLine1: data.address_line1,
-                addressLine2: data.address_line2,
-            });
+            const savedAddress = {
+                ...data,
+                lat: data?.lat ?? latitude,
+                lng: data?.lng ?? longitude,
+            };
+            setAddresses([savedAddress, ...addresses]);
+            setSelectedAddress(normalizeAddress(savedAddress));
             setIsAdding(false);
             setAddressLine1('');
             setAddressLine2('');
+            setLatitude(null);
+            setLongitude(null);
+            setLocationQuery('');
+            setSuggestions([]);
         }
     };
 
@@ -105,12 +255,7 @@ const AddressSelectScreen = ({ navigation }) => {
     };
 
     const handleSelect = (addr) => {
-        setSelectedAddress({
-            id: addr.id,
-            type: addr.type,
-            addressLine1: addr.address_line1,
-            addressLine2: addr.address_line2,
-        });
+        setSelectedAddress(normalizeAddress(addr));
         navigation.goBack();
     };
 
@@ -130,10 +275,24 @@ const AddressSelectScreen = ({ navigation }) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.container}>
+                <View style={styles.mapCard}>
+                    {previewMapUrl ? <Image source={{ uri: previewMapUrl }} style={styles.mapImage} /> : null}
+                    <View style={styles.mapOverlay}>
+                        <View>
+                            <Text style={styles.mapTitle}>Delivery Area</Text>
+                            <Text style={styles.mapSubtitle}>Ernakulam, Kerala</Text>
+                        </View>
+                        <TouchableOpacity style={styles.currentLocationBtn} onPress={handleUseCurrentLocation} disabled={locating}>
+                            <Ionicons name="locate" size={18} color={Colors.white} />
+                            <Text style={styles.currentLocationText}>{locating ? 'Locating...' : 'Use GPS'}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
                 {isAdding ? (
                     <View style={styles.addForm}>
                         <Text style={styles.sectionTitle}>Add New Address</Text>
-                        
+
                         <View style={styles.typeSelector}>
                             {['Home', 'Work', 'Other'].map(t => (
                                 <TouchableOpacity 
@@ -141,10 +300,36 @@ const AddressSelectScreen = ({ navigation }) => {
                                     style={[styles.typeBtn, type === t && styles.typeBtnActive]}
                                     onPress={() => setType(t)}
                                 >
-                                    <Text style={[styles.typeBtnText, type === t && styles.typeBtnTextActive]}>{t}</Text>
-                                </TouchableOpacity>
-                            ))}
+                                <Text style={[styles.typeBtnText, type === t && styles.typeBtnTextActive]}>{t}</Text>
+                            </TouchableOpacity>
+                        ))}
                         </View>
+
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Search area or landmark in Ernakulam"
+                            placeholderTextColor={Colors.textMuted}
+                            value={locationQuery}
+                            onChangeText={setLocationQuery}
+                        />
+
+                        {searching ? (
+                            <Text style={styles.helperText}>Searching locations...</Text>
+                        ) : null}
+
+                        {suggestions.length > 0 ? (
+                            <View style={styles.suggestionsCard}>
+                                {suggestions.map(item => (
+                                    <TouchableOpacity key={item.id} style={styles.suggestionRow} onPress={() => applySuggestion(item)}>
+                                        <Ionicons name="location-outline" size={18} color={Colors.primary} />
+                                        <View style={styles.suggestionCopy}>
+                                            <Text style={styles.suggestionTitle}>{item.title}</Text>
+                                            <Text style={styles.suggestionSubtitle}>{item.subtitle}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        ) : null}
 
                         <TextInput
                             style={styles.input}
@@ -161,6 +346,11 @@ const AddressSelectScreen = ({ navigation }) => {
                             value={addressLine2}
                             onChangeText={setAddressLine2}
                         />
+
+                        <TouchableOpacity style={styles.secondaryAction} onPress={handleUseCurrentLocation} disabled={locating}>
+                            <Ionicons name="navigate-circle-outline" size={18} color={Colors.primary} />
+                            <Text style={styles.secondaryActionText}>{locating ? 'Finding your position...' : 'Use current location'}</Text>
+                        </TouchableOpacity>
 
                         <AppButton
                             title="Save Address"
@@ -235,6 +425,55 @@ const styles = StyleSheet.create({
         padding: Spacing.base,
         paddingBottom: 100,
     },
+    mapCard: {
+        height: 210,
+        borderRadius: BorderRadius['2xl'],
+        overflow: 'hidden',
+        marginBottom: Spacing.base,
+        backgroundColor: Colors.surfaceLight,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 7, height: 7 },
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    mapImage: {
+        width: '100%',
+        height: '100%',
+    },
+    mapOverlay: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        padding: Spacing.base,
+        backgroundColor: 'rgba(36,26,18,0.26)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    mapTitle: {
+        ...Typography.labelLarge,
+        color: Colors.white,
+    },
+    mapSubtitle: {
+        ...Typography.caption,
+        color: 'rgba(255,255,255,0.86)',
+        marginTop: 4,
+    },
+    currentLocationBtn: {
+        backgroundColor: Colors.primary,
+        borderRadius: BorderRadius.full,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    currentLocationText: {
+        ...Typography.labelSmall,
+        color: Colors.white,
+    },
     sectionTitle: { ...Typography.h5, color: Colors.textPrimary, marginBottom: Spacing.md },
     addForm: {
         backgroundColor: Colors.surface,
@@ -272,6 +511,57 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: Colors.border,
         marginBottom: Spacing.md,
+    },
+    helperText: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+        marginTop: -6,
+        marginBottom: Spacing.sm,
+    },
+    suggestionsCard: {
+        borderRadius: BorderRadius.lg,
+        backgroundColor: Colors.card,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        marginBottom: Spacing.md,
+        overflow: 'hidden',
+    },
+    suggestionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        paddingHorizontal: Spacing.base,
+        paddingVertical: Spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.border,
+    },
+    suggestionCopy: {
+        flex: 1,
+    },
+    suggestionTitle: {
+        ...Typography.labelMedium,
+        color: Colors.textPrimary,
+    },
+    suggestionSubtitle: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+        marginTop: 2,
+    },
+    secondaryAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        minHeight: 48,
+        borderRadius: BorderRadius.lg,
+        backgroundColor: `${Colors.primary}10`,
+        borderWidth: 1,
+        borderColor: `${Colors.primary}20`,
+        marginTop: 2,
+    },
+    secondaryActionText: {
+        ...Typography.labelMedium,
+        color: Colors.primary,
     },
     addressCard: {
         flexDirection: 'row',

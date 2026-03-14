@@ -15,10 +15,14 @@ const mapDbToApp = (table, row) => {
             id: row.id,
             name: row.name,
             location: row.location,
+            fullAddress: row.full_address,
             cuisine: row.cuisine,
             deliveryTime: row.delivery_time,
             deliveryFee: row.delivery_fee,
+            minOrder: row.min_order,
+            distance: row.distance,
             rating: row.rating,
+            reviewCount: row.review_count,
             isFeatured: row.is_featured,
             isOpen: row.is_open,
             offer: row.offer,
@@ -26,6 +30,8 @@ const mapDbToApp = (table, row) => {
             tags: row.tags,
             operatingHours: row.operating_hours,
             phone: row.phone,
+            lat: row.lat,
+            lng: row.lng,
             category: row.category_id,
         };
     }
@@ -58,8 +64,11 @@ export const useDataStore = create((set) => ({
     stores: [],
     products: [],
     serviceCategories: [],
+    orders: [],
     isLoading: false,
     error: null,
+    ordersLoading: false,
+    ordersError: null,
 
     fetchAppData: async () => {
         set({ isLoading: true, error: null });
@@ -84,6 +93,27 @@ export const useDataStore = create((set) => ({
         } catch (error) {
             console.error('Error fetching Supabase data:', error.message);
             set({ error: error.message, isLoading: false });
+        }
+    },
+    fetchUserOrders: async (userId) => {
+        if (!userId) return;
+        set({ ordersLoading: true, ordersError: null });
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            set({
+                orders: data || [],
+                ordersLoading: false,
+            });
+        } catch (error) {
+            console.error('Error fetching user orders:', error.message);
+            set({ ordersError: error.message, ordersLoading: false });
         }
     },
 }));

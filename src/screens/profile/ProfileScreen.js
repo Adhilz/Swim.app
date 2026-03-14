@@ -19,39 +19,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
+import { useDataStore } from '../../store/dataStore';
 
 const ProfileScreen = ({ navigation }) => {
-    const { user, logout } = useAuthStore();
-    const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'settings'
-    const [orders, setOrders] = useState([]);
-    const [loadingOrders, setLoadingOrders] = useState(false);
+    const user = useAuthStore(state => state.user);
+    const logout = useAuthStore(state => state.logout);
+    const [activeTab, setActiveTab] = useState('overview'); // overview | settings
+    const orders = useDataStore(state => state.orders);
+    const ordersLoading = useDataStore(state => state.ordersLoading);
+    const stores = useDataStore(state => state.stores);
 
-    useEffect(() => {
-        if (activeTab === 'orders' && user) {
-            fetchOrders();
-        }
-    }, [activeTab, user]);
+    const decoratedOrders = React.useMemo(() => {
+        if (!orders || !stores) return [];
+        return orders.map(o => {
+            const store = stores.find(s => s.id === o.store_id);
+            return {
+                ...o,
+                storeName: store?.name || 'Store',
+                storeImage: store?.image,
+            };
+        });
+    }, [orders, stores]);
 
-    const fetchOrders = async () => {
-        setLoadingOrders(true);
-        const { data, error } = await supabase
-            .from('orders')
-            .select(`
-                id,
-                total_amount,
-                status,
-                created_at,
-                stores(name, image)
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-            
-        if (!error && data) {
-            setOrders(data);
-        }
-        setLoadingOrders(false);
-    };
+    const lifetimeSpend = React.useMemo(
+        () => (orders || []).reduce((sum, o) => sum + (o.total_amount || 0), 0),
+        [orders]
+    );
 
     const statusColor = (status) => {
         switch (status) {
@@ -75,10 +68,19 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.orderHeader}>
                 <View style={styles.orderStoreInfo}>
                     <View style={styles.orderStoreImgWrap}>
-                        <Image source={{ uri: item.stores?.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200' }} style={styles.orderStoreImg} />
+                        <Image
+                            source={
+                                item.storeImage
+                                    ? typeof item.storeImage === 'string'
+                                        ? { uri: item.storeImage }
+                                        : item.storeImage
+                                    : { uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200' }
+                            }
+                            style={styles.orderStoreImg}
+                        />
                     </View>
                     <View>
-                        <Text style={styles.orderStoreName}>{item.stores?.name || 'Store'}</Text>
+                        <Text style={styles.orderStoreName}>{item.storeName}</Text>
                         <Text style={styles.orderDate}>
                             {new Date(item.created_at).toLocaleDateString()}
                         </Text>
@@ -131,55 +133,151 @@ const ProfileScreen = ({ navigation }) => {
                 {/* ── Tabs ── */}
                 <View style={styles.tabs}>
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'orders' && styles.tabActive]}
-                        onPress={() => setActiveTab('orders')}
+                        style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
+                        onPress={() => setActiveTab('overview')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'orders' && styles.tabTextActive]}>My Orders</Text>
+                        <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>
+                            Overview
+                        </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'settings' && styles.tabActive]}
                         onPress={() => setActiveTab('settings')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>Settings</Text>
+                        <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>
+                            Settings
+                        </Text>
                     </TouchableOpacity>
                 </View>
 
                 {/* ── Tab Content ── */}
-                {activeTab === 'orders' ? (
+                {activeTab === 'overview' ? (
                     <View style={styles.tabContent}>
-                        {loadingOrders ? (
-                            <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
-                        ) : orders.length > 0 ? (
-                            orders.map(order => <React.Fragment key={order.id}>{renderOrderCard({ item: order })}</React.Fragment>)
-                        ) : (
-                            <View style={styles.emptyState}>
-                                <Ionicons name="receipt-outline" size={48} color={Colors.textMuted} />
-                                <Text style={styles.emptyText}>No orders found</Text>
+                        {/* Stats */}
+                        <View style={styles.statsRow}>
+                            <View style={styles.stat}>
+                                <Text style={styles.statValue}>{decoratedOrders.length}</Text>
+                                <Text style={styles.statLabel}>Orders</Text>
                             </View>
-                        )}
+                            <View style={styles.statDivider} />
+                            <View style={styles.stat}>
+                                <Text style={styles.statValue}>₹{lifetimeSpend}</Text>
+                                <Text style={styles.statLabel}>Total Spend</Text>
+                            </View>
+                        </View>
+
+                        {/* Recent Orders */}
+                        <View style={styles.menuSection}>
+                            <Text style={styles.menuSectionTitle}>Recent Orders</Text>
+                            {ordersLoading ? (
+                                <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 16 }} />
+                            ) : decoratedOrders.length > 0 ? (
+                                decoratedOrders.slice(0, 3).map(order => (
+                                    <React.Fragment key={order.id}>
+                                        {renderOrderCard({ item: order })}
+                                    </React.Fragment>
+                                ))
+                            ) : (
+                                <View style={styles.emptyState}>
+                                    <Ionicons name="receipt-outline" size={32} color={Colors.textMuted} />
+                                    <Text style={styles.emptyText}>No orders yet</Text>
+                                </View>
+                            )}
+                            {decoratedOrders.length > 3 && (
+                                <TouchableOpacity
+                                    style={styles.seeAllOrders}
+                                    onPress={() => navigation.navigate('OrderHistory')}
+                                >
+                                    <Text style={styles.seeAllText}>View all orders</Text>
+                                    <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
                 ) : (
                     <View style={styles.tabContent}>
                         {/* Settings Menu */}
                         <View style={styles.menuSection}>
+                            <Text style={styles.menuSectionTitle}>Orders & Wallet</Text>
                             <View style={styles.menuCard}>
-                                <TouchableOpacity style={[styles.menuItem, styles.menuItemBorder]} onPress={() => navigation.navigate('AddressSelect')}>
+                                <TouchableOpacity
+                                    style={[styles.menuItem, styles.menuItemBorder]}
+                                    onPress={() => navigation.navigate('OrderHistory')}
+                                >
+                                    <View style={styles.menuIconContainer}>
+                                        <Ionicons name="receipt-outline" size={20} color={Colors.primary} />
+                                    </View>
+                                    <Text style={styles.menuLabel}>My Orders</Text>
+                                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.menuItem, styles.menuItemBorder]}
+                                    onPress={() => navigation.navigate('Wallet')}
+                                >
+                                    <View style={styles.menuIconContainer}>
+                                        <Ionicons name="wallet-outline" size={20} color={Colors.primary} />
+                                    </View>
+                                    <Text style={styles.menuLabel}>Swim.ai Wallet</Text>
+                                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={() => navigation.navigate('Coupons')}
+                                >
+                                    <View style={styles.menuIconContainer}>
+                                        <Ionicons name="pricetag-outline" size={20} color={Colors.primary} />
+                                    </View>
+                                    <Text style={styles.menuLabel}>Offers & Coupons</Text>
+                                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={styles.menuSection}>
+                            <Text style={styles.menuSectionTitle}>Account</Text>
+                            <View style={styles.menuCard}>
+                                <TouchableOpacity
+                                    style={[styles.menuItem, styles.menuItemBorder]}
+                                    onPress={() => navigation.navigate('AddressSelect')}
+                                >
                                     <View style={styles.menuIconContainer}>
                                         <Ionicons name="location-outline" size={20} color={Colors.primary} />
                                     </View>
-                                    <Text style={styles.menuLabel}>Manage Addresses</Text>
+                                    <Text style={styles.menuLabel}>Saved Addresses</Text>
                                     <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.menuItem}>
+                                <TouchableOpacity
+                                    style={[styles.menuItem, styles.menuItemBorder]}
+                                    onPress={() => navigation.navigate('Payments')}
+                                >
                                     <View style={styles.menuIconContainer}>
                                         <Ionicons name="card-outline" size={20} color={Colors.primary} />
                                     </View>
                                     <Text style={styles.menuLabel}>Payment Methods</Text>
                                     <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.menuItem}>
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={() => navigation.navigate('Notifications')}
+                                >
                                     <View style={styles.menuIconContainer}>
-                                        <Ionicons name="help-buoy-outline" size={20} color={Colors.primary} />
+                                        <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+                                    </View>
+                                    <Text style={styles.menuLabel}>Notifications</Text>
+                                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={styles.menuSection}>
+                            <Text style={styles.menuSectionTitle}>Support</Text>
+                            <View style={styles.menuCard}>
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={() => navigation.navigate('Support')}
+                                >
+                                    <View style={styles.menuIconContainer}>
+                                        <Ionicons name="help-circle-outline" size={20} color={Colors.primary} />
                                     </View>
                                     <Text style={styles.menuLabel}>Help & Support</Text>
                                     <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />

@@ -15,6 +15,80 @@ export const useAuthStore = create((set, get) => ({
 
     setUser: (user) => set({ user, isAuthenticated: !!user }),
 
+    continueWithGoogle: async () => {
+        set({ isLoading: true });
+        try {
+            const { makeRedirectUri } = require('expo-auth-session');
+            const WebBrowser = require('expo-web-browser');
+            const QueryParams = require('expo-auth-session/build/QueryParams');
+            
+            WebBrowser.maybeCompleteAuthSession();
+            
+            const redirectUrl = makeRedirectUri();
+            
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: redirectUrl }
+            });
+
+            if (error || !data.url) throw error || new Error('Google Auth URL failed');
+            
+            const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+            if (res.type === 'success') {
+                const { params, errorCode } = QueryParams.getQueryParams(res.url);
+                if (errorCode) throw new Error(errorCode);
+                
+                if (params.access_token) {
+                    const { data: sessionData, error: sessionErr } = await supabase.auth.setSession({
+                        access_token: params.access_token,
+                        refresh_token: params.refresh_token,
+                    });
+                    
+                    if (sessionErr) throw sessionErr;
+                    
+                    if (sessionData && sessionData.user) {
+                        const userId = sessionData.user.id;
+                        
+                        // Check if profile exists, otherwise complete profile
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', userId)
+                            .single();
+
+                        const isProfileComplete = !!(profile && profile.name);
+                        
+                        set({
+                            user: {
+                                id: userId,
+                                name: profile?.name || sessionData.user.user_metadata?.full_name || '',
+                                phone: profile?.phone || '',
+                                email: profile?.email || sessionData.user.email,
+                                loyaltyPoints: 0,
+                                totalOrders: 0,
+                            },
+                            isAuthenticated: true,
+                            isProfileComplete,
+                            token: sessionData.session.access_token,
+                        });
+                        return { success: true };
+                    }
+                }
+            } else if (res.type === 'cancel') {
+                set({ isLoading: false });
+                return { success: false, error: 'User cancelled login.' };
+            }
+        } catch (error) {
+            console.error('Google Auth Error:', error.message);
+            set({ isLoading: false });
+            return { success: false, error: error.message };
+        }
+        
+        set({ isLoading: false });
+        return { success: false, error: 'Failed to complete Google authentication.' };
+    },
+
     sendOtp: async (phone) => {
         set({ isLoading: true });
         // Simulate sending SMS
@@ -46,17 +120,23 @@ export const useAuthStore = create((set, get) => ({
             password: dummyPassword,
         });
 
-        // 2. If the user doesn't exist, sign them up invisibly
-        if (error && error.message.includes('Invalid login credentials')) {
-            const res = await supabase.auth.signUp({
+        // 2. If the user doesn't exist (invalid login) or somehow 'Email not confirmed', fix them invisibly
+        if (error && (error.message.includes('Invalid login credentials') || error.message.includes('Email not confirmed'))) {
+            const { error: signUpErr } = await supabase.auth.signUp({
                 email: dummyEmail,
                 password: dummyPassword,
                 options: {
                     data: { phone: `+91${phone}` }
                 }
             });
-            data = res.data;
-            error = res.error;
+            
+            // Re-attempt sign in to fetch session since trigger confirms them instantly
+            const r = await supabase.auth.signInWithPassword({
+                email: dummyEmail,
+                password: dummyPassword,
+            });
+            data = r.data;
+            error = r.error;
         }
 
         if (error) {

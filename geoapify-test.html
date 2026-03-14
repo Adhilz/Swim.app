@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geoapify Test</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f8f7f5;
+      color: #241a12;
+    }
+
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(102, 76, 50, 0.12);
+      margin-bottom: 20px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    #map {
+      height: 420px;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    img {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+      border-radius: 16px;
+      display: block;
+      background: #ece3db;
+    }
+
+    code {
+      word-break: break-all;
+      display: block;
+      padding: 12px;
+      border-radius: 12px;
+      background: #f1ece6;
+      margin-top: 12px;
+      white-space: pre-wrap;
+    }
+
+    .ok {
+      color: #2e9b59;
+      font-weight: 700;
+    }
+
+    .bad {
+      color: #d85c46;
+      font-weight: 700;
+    }
+
+    @media (max-width: 800px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Geoapify Test</h1>
+      <p>This page checks two things separately:</p>
+      <p>1. Static map image loading</p>
+      <p>2. Interactive tile map loading in a normal browser</p>
+      <p id="status">Preparing test…</p>
+      <code id="url"></code>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h2>Static Map Image</h2>
+        <img id="staticMap" alt="Geoapify static map" />
+        <p id="imageStatus"></p>
+      </div>
+
+      <div class="card">
+        <h2>Interactive Map</h2>
+        <div id="map"></div>
+        <p id="tileStatus"></p>
+      </div>
+    </div>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    const apiKey = "0119df99dc684e6f99b9e828efe1bd4d";
+    const lat = 9.9816;
+    const lng = 76.2999;
+
+    const marker = encodeURIComponent(`lonlat:${lng},${lat};color:#f48c25;size:medium`);
+    const staticUrl = `https://maps.geoapify.com/v1/staticmap?style=osm-carto&width=900&height=600&center=lonlat:${lng},${lat}&zoom=15&marker=${marker}&apiKey=${apiKey}`;
+
+    document.getElementById("url").textContent = staticUrl;
+
+    document.getElementById("status").innerHTML = '<span class="ok">API key present.</span> Testing browser loading now.';
+
+    const img = document.getElementById("staticMap");
+    img.onload = () => {
+      document.getElementById("imageStatus").innerHTML = '<span class="ok">Static map image loaded successfully.</span>';
+    };
+    img.onerror = () => {
+      document.getElementById("imageStatus").innerHTML = '<span class="bad">Static map image failed to load.</span>';
+    };
+    img.src = staticUrl;
+
+    const map = L.map("map").setView([lat, lng], 15);
+    const tileLayer = L.tileLayer(
+      `https://maps.geoapify.com/v1/tile/osm-carto/{z}/{x}/{y}.png?apiKey=${apiKey}`,
+      {
+        attribution: '&copy; OpenStreetMap contributors &copy; Geoapify',
+        maxZoom: 20,
+      }
+    );
+
+    tileLayer.on("load", () => {
+      document.getElementById("tileStatus").innerHTML = '<span class="ok">Interactive map tiles loaded successfully.</span>';
+    });
+
+    tileLayer.on("tileerror", () => {
+      document.getElementById("tileStatus").innerHTML = '<span class="bad">Interactive map tiles failed to load.</span>';
+    });
+
+    tileLayer.addTo(map);
+    L.marker([lat, lng]).addTo(map).bindPopup("Ernakulam Center").openPopup();
+  </script>
+</body>
+</html>

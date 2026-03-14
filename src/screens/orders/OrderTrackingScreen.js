@@ -1,438 +1,576 @@
-// ─────────────────────────────────────────────
-//  Screen: Order Tracking (Live)
-// ─────────────────────────────────────────────
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     Animated,
-    ScrollView,
     StatusBar,
     Linking,
     ActivityIndicator,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
+import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 import AppButton from '../../components/common/AppButton';
-import { ORDER_STATUS_STEPS, DELIVERY_PARTNER } from '../../data/mockData';
+import { DELIVERY_PARTNER, ORDERS, STORES } from '../../data/mockData';
 import { supabase } from '../../lib/supabase';
+import { buildGeoapifyStaticMapUrl, GEOAPIFY_API_KEY } from '../../lib/geoapify';
+import { useDataStore } from '../../store/dataStore';
 
-const STATUS_STEPS = ORDER_STATUS_STEPS;
-const MOCK_PARTNER = DELIVERY_PARTNER;
+const STATUS_INDEX = {
+    pending: 0.25,
+    confirmed: 0.33,
+    preparing: 0.55,
+    accepted: 0.55,
+    pickup: 0.72,
+    pickedup: 0.72,
+    ontheway: 0.72,
+    delivered: 1,
+};
+
+const getProgressFromStatus = status => {
+    const normalized = String(status || '').toLowerCase().replace(/[\s_-]/g, '');
+    return STATUS_INDEX[normalized] ?? 0.55;
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUuid = value => UUID_PATTERN.test(String(value || '').trim());
+const ERNAKULAM_CENTER = {
+    latitude: 9.9816,
+    longitude: 76.2999,
+};
 
 const OrderTrackingScreen = ({ route, navigation }) => {
     const { orderId } = route.params || {};
+    const stores = useDataStore(state => state.stores);
     const [order, setOrder] = useState(null);
-    const [currentStep, setCurrentStep] = useState(1);
-    const [eta, setEta] = useState(14);
     const [loading, setLoading] = useState(true);
-    const pulseAnim = useRef(new Animated.Value(1)).current;
-    const mapMoveAnim = useRef(new Animated.Value(0)).current;
+    const [error, setError] = useState(null);
+    const [mapLoadError, setMapLoadError] = useState(null);
+    const bobAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchOrder = async () => {
-            if (!orderId) { setLoading(false); return; }
-            setLoading(true);
-            const { data, error } = await supabase
-                .from('orders')
-                .select('*')
-                .eq('id', orderId)
-                .single();
-            if (data) setOrder(data);
-            setLoading(false);
+            if (!orderId) {
+                setLoading(false);
+                return;
+            }
+
+            if (!isUuid(orderId)) {
+                const localOrder = ORDERS.find(item => String(item.id) === String(orderId));
+
+                if (isMounted) {
+                    setOrder(localOrder || null);
+                    setError(localOrder ? null : 'Latest live update unavailable for this sample order.');
+                    setLoading(false);
+                }
+                return;
+            }
+
+            try {
+                const { data, error: queryError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('id', orderId)
+                    .single();
+
+                if (queryError) {
+                    throw queryError;
+                }
+
+                if (isMounted) {
+                    setOrder(data);
+                }
+            } catch (fetchError) {
+                if (isMounted) {
+                    setError(fetchError.message || 'Unable to load this order.');
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
         };
+
         fetchOrder();
+
+        return () => {
+            isMounted = false;
+        };
     }, [orderId]);
 
-    // Simulate order progression
     useEffect(() => {
-        const timer = setInterval(() => {
-            setCurrentStep(prev => (prev < STATUS_STEPS.length - 1 ? prev + 1 : prev));
-            setEta(prev => Math.max(0, prev - 3));
-        }, 5000);
-        return () => clearInterval(timer);
-    }, []);
-
-    // Pulse animation for live indicator
-    useEffect(() => {
-        const pulse = Animated.loop(
+        const loop = Animated.loop(
             Animated.sequence([
-                Animated.timing(pulseAnim, { toValue: 1.3, duration: 800, useNativeDriver: true }),
-                Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(bobAnim, { toValue: -10, duration: 1200, useNativeDriver: true }),
+                Animated.timing(bobAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
             ])
         );
-        pulse.start();
-        return () => pulse.stop();
-    }, []);
+        loop.start();
+        return () => loop.stop();
+    }, [bobAnim]);
 
-    // Animate delivery pin
-    useEffect(() => {
-        const move = Animated.loop(
-            Animated.sequence([
-                Animated.timing(mapMoveAnim, { toValue: 1, duration: 3000, useNativeDriver: true }),
-                Animated.timing(mapMoveAnim, { toValue: 0.7, duration: 2000, useNativeDriver: true }),
-            ])
-        );
-        move.start();
-        return () => move.stop();
-    }, []);
-
-    const partnerTranslateX = mapMoveAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 120], // Adjusted relative to starting position
-    });
+    const progress = useMemo(() => getProgressFromStatus(order?.status), [order?.status]);
+    const progressWidth = `${Math.round(progress * 100)}%`;
+    const relatedStore = useMemo(() => {
+        const storeId = order?.store_id || order?.storeId;
+        return stores.find(item => item.id === storeId)
+            || STORES.find(item => item.id === storeId)
+            || null;
+    }, [order?.storeId, order?.store_id, stores]);
+    const deliveryCoords = order?.delivery_address?.lat != null && order?.delivery_address?.lng != null
+        ? {
+            latitude: order.delivery_address.lat,
+            longitude: order.delivery_address.lng,
+            color: Colors.textPrimary,
+        }
+        : null;
+    const storeCoords = relatedStore?.lat != null && relatedStore?.lng != null
+        ? {
+            latitude: relatedStore.lat,
+            longitude: relatedStore.lng,
+            color: Colors.primary,
+        }
+        : null;
+    const mapUrl = useMemo(() => {
+        const markers = [storeCoords, deliveryCoords].filter(Boolean);
+        const center = deliveryCoords || storeCoords || ERNAKULAM_CENTER;
+        return buildGeoapifyStaticMapUrl({
+            latitude: center.latitude,
+            longitude: center.longitude,
+            zoom: deliveryCoords && storeCoords ? 14 : markers.length > 0 ? 15 : 13,
+            width: 1200,
+            height: 900,
+            markers,
+        });
+    }, [deliveryCoords, storeCoords]);
+    const mapIssue = !GEOAPIFY_API_KEY
+        ? 'Geoapify API key is not loaded in the app runtime.'
+        : mapLoadError
+            ? 'The map image could not be loaded from Geoapify.'
+            : null;
+    const displayOrderId = String(order?.id || orderId || '88219').slice(0, 8).toUpperCase();
+    const address = order?.delivery_address
+        ? `${order.delivery_address.addressLine1 || ''}${order.delivery_address.addressLine2 ? `, ${order.delivery_address.addressLine2}` : ''}`
+        : order?.deliveryAddress || 'Your saved address';
+    const statusText = order?.status || 'Picking up your item';
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.safe, { justifyContent: 'center', alignItems: 'center' }]}>
+            <SafeAreaView style={styles.loadingScreen}>
                 <ActivityIndicator size="large" color={Colors.primary} />
             </SafeAreaView>
         );
     }
 
-    const displayOrderId = order?.id ? order.id.slice(0, 8).toUpperCase() : (orderId ? orderId.slice(0, 8).toUpperCase() : 'ORD001');
-
     return (
-        <SafeAreaView style={styles.safe} edges={['top']}>
-            <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <View style={styles.root}>
+            <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
-                </TouchableOpacity>
-                <View>
-                    <Text style={styles.headerTitle}>Tracking Order</Text>
-                    <Text style={styles.orderId}>#{displayOrderId}</Text>
+            <SafeAreaView edges={['top']} style={styles.headerArea}>
+                <View style={styles.headerCard}>
+                    <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
+                        <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
+                    </TouchableOpacity>
+                    <View style={styles.headerCenter}>
+                        <Text style={styles.headerEyebrow}>Live Tracking</Text>
+                        <Text style={styles.headerTitle}>Order #{displayOrderId}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Support')}>
+                        <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textPrimary} />
+                    </TouchableOpacity>
                 </View>
-                <View style={styles.liveChip}>
-                    <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-                    <Text style={styles.liveText}>LIVE</Text>
+            </SafeAreaView>
+
+            <View style={styles.mapArea}>
+                {mapUrl ? (
+                    <Image
+                        source={{ uri: mapUrl }}
+                        style={styles.mapImage}
+                        resizeMode="cover"
+                        onError={() => setMapLoadError('image')}
+                        onLoad={() => setMapLoadError(null)}
+                    />
+                ) : (
+                    <View style={styles.mapFallback}>
+                        <Ionicons name="map-outline" size={42} color={Colors.textMuted} />
+                        <Text style={styles.mapFallbackText}>Map preview unavailable for this order.</Text>
+                    </View>
+                )}
+                <View style={styles.mapTint} />
+
+                <Animated.View style={[styles.riderMarkerWrap, { transform: [{ translateY: bobAnim }] }]}>
+                    <View style={styles.riderMarker}>
+                        <Ionicons name="bicycle" size={30} color={Colors.white} />
+                    </View>
+                    <View style={styles.markerShadow} />
+                </Animated.View>
+
+                <View style={styles.destinationMarker}>
+                    <Ionicons name="home" size={16} color={Colors.white} />
                 </View>
+
+                <View style={styles.mapControls}>
+                    <TouchableOpacity style={styles.mapControlBtn}>
+                        <Ionicons name="add" size={18} color={Colors.textPrimary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.mapControlBtn}>
+                        <Ionicons name="remove" size={18} color={Colors.textPrimary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.mapControlBtn, styles.mapControlBtnAccent]}>
+                        <Ionicons name="navigate" size={18} color={Colors.primary} />
+                    </TouchableOpacity>
+                </View>
+
+                {mapIssue ? (
+                    <View style={styles.mapStatusPill}>
+                        <Text style={styles.mapStatusText}>{mapIssue}</Text>
+                    </View>
+                ) : null}
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                {/* ── Progress Steps ── */}
-                <View style={styles.stepsContainer}>
-                    {STATUS_STEPS.map((step, index) => {
-                        const isDone = index < currentStep;
-                        const isActive = index === currentStep;
-                        const color = isDone || isActive ? Colors.primary : Colors.border;
-
-                        return (
-                            <React.Fragment key={step.id}>
-                                <View style={styles.stepItem}>
-                                    <View style={[
-                                        styles.stepCircle,
-                                        { borderColor: color, backgroundColor: isDone ? Colors.primary : isActive ? `${Colors.primary}20` : Colors.surface }
-                                    ]}>
-                                        <Ionicons
-                                            name={step.icon}
-                                            size={16}
-                                            color={isDone ? Colors.white : isActive ? Colors.primary : Colors.textMuted}
-                                        />
-                                    </View>
-                                    <View style={styles.stepInfo}>
-                                        <Text style={[styles.stepLabel, { color: isDone || isActive ? Colors.textPrimary : Colors.textMuted }]}>
-                                            {step.label}
-                                        </Text>
-                                        <Text style={styles.stepDesc}>{step.desc}</Text>
-                                    </View>
-                                    {(isDone || isActive) && (
-                                        <Ionicons name={isDone ? 'checkmark-circle' : 'time'} size={18} color={color} />
-                                    )}
-                                </View>
-                                {index < STATUS_STEPS.length - 1 && (
-                                    <View style={[styles.stepConnector, { backgroundColor: isDone ? Colors.primary : Colors.border }]} />
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                </View>
-
-                {/* ── ETA ── */}
-                <View style={styles.etaCard}>
-                    <LinearGradient colors={Colors.primaryGradient} style={styles.etaGradient}>
-                        {eta > 0 ? (
-                            <>
-                                <Text style={styles.etaLabel}>Estimated Arrival</Text>
-                                <Text style={styles.etaTime}>{eta} min</Text>
-                                <Text style={styles.etaSub}>Your order is on the way! 🚀</Text>
-                            </>
-                        ) : (
-                            <>
-                                <Ionicons name="checkmark-circle" size={40} color={Colors.white} />
-                                <Text style={styles.etaTime}>Delivered!</Text>
-                                <Text style={styles.etaSub}>Enjoy your order 🎉</Text>
-                            </>
-                        )}
-                    </LinearGradient>
-                </View>
-
-                {/* ── Animated Map ── */}
-                <View style={styles.mapCard}>
-                    <View style={styles.mapPlaceholder}>
-                        {/* Simulated map grid */}
-                        {[...Array(6)].map((_, i) => (
-                            <View key={`h${i}`} style={[styles.mapGridLine, styles.mapGridH, { top: `${i * 20}%` }]} />
-                        ))}
-                        {[...Array(6)].map((_, i) => (
-                            <View key={`v${i}`} style={[styles.mapGridLine, styles.mapGridV, { left: `${i * 20}%` }]} />
-                        ))}
-
-                        {/* Roads */}
-                        <View style={styles.mapRoad1} />
-                        <View style={styles.mapRoad2} />
-
-                        {/* Delivery partner pin (animated) */}
-                        <Animated.View style={[styles.deliveryPin, { transform: [{ translateX: partnerTranslateX }] }]}>
-                            <LinearGradient colors={Colors.primaryGradient} style={styles.deliveryPinGradient}>
-                                <Ionicons name="bicycle" size={16} color={Colors.white} />
-                            </LinearGradient>
-                        </Animated.View>
-
-                        {/* Destination pin */}
-                        <View style={styles.destinationPin}>
-                            <Ionicons name="location" size={28} color={Colors.error} />
-                            <View style={styles.destPinShadow} />
-                        </View>
-
-                        <View style={styles.mapOverlay}>
-                            <Text style={styles.mapLabel}>{'Live Map'}</Text>
-                        </View>
+            <View style={styles.bottomSheet}>
+                <View style={styles.pullBar} />
+                <View style={styles.statusRow}>
+                    <View style={styles.statusIcon}>
+                        <Ionicons name="cube-outline" size={30} color={Colors.primary} />
+                    </View>
+                    <View style={styles.statusCopy}>
+                        <Text style={styles.statusTitle}>{statusText}</Text>
+                        <Text style={styles.statusSubtitle}>{address}</Text>
                     </View>
                 </View>
 
-                {/* ── Delivery Partner ── */}
+                <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: progressWidth }]} />
+                </View>
+
+                {error ? (
+                    <Text style={styles.errorText}>Latest live update unavailable: {error}</Text>
+                ) : null}
+
                 <View style={styles.partnerCard}>
-                    <View style={styles.partnerAvatar}>
-                        <LinearGradient colors={Colors.primaryGradient} style={styles.avatarGradient}>
-                            <Text style={styles.avatarInitial}>{MOCK_PARTNER.name.charAt(0)}</Text>
-                        </LinearGradient>
-                    </View>
-                    <View style={styles.partnerInfo}>
-                        <Text style={styles.partnerName}>{MOCK_PARTNER.name}</Text>
-                        <View style={styles.partnerMeta}>
-                            <Ionicons name="star" size={12} color={Colors.star} />
-                            <Text style={styles.partnerRating}>{MOCK_PARTNER.rating}</Text>
-                            <Text style={styles.partnerSep}>•</Text>
-                            <Text style={styles.partnerVehicle}>{MOCK_PARTNER.vehicle}</Text>
+                    <View style={styles.partnerLeft}>
+                        <View style={styles.partnerAvatar}>
+                            <Text style={styles.partnerInitial}>{DELIVERY_PARTNER.name.charAt(0)}</Text>
+                        </View>
+                        <View>
+                            <Text style={styles.partnerName}>{DELIVERY_PARTNER.name}</Text>
+                            <View style={styles.partnerMetaRow}>
+                                <Ionicons name="star" size={12} color={Colors.star} />
+                                <Text style={styles.partnerMeta}>{DELIVERY_PARTNER.rating} (1.2k reviews)</Text>
+                            </View>
                         </View>
                     </View>
                     <View style={styles.partnerActions}>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => Linking.openURL(`tel:${MOCK_PARTNER.phone}`)}
-                        >
-                            <Ionicons name="call" size={18} color={Colors.primary} />
+                        <TouchableOpacity style={styles.partnerActionSecondary} onPress={() => navigation.navigate('Support')}>
+                            <Ionicons name="chatbubble-outline" size={18} color={Colors.primary} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: `${Colors.info}15` }]}>
-                            <Ionicons name="chatbubble" size={18} color={Colors.info} />
+                        <TouchableOpacity
+                            style={styles.partnerActionPrimary}
+                            onPress={() => Linking.openURL(`tel:${DELIVERY_PARTNER.phone}`)}
+                        >
+                            <Ionicons name="call" size={18} color={Colors.white} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* ── Footer Actions ── */}
-                <View style={styles.footerActions}>
-                    <AppButton
-                        title="Cancel Order"
-                        variant="outline"
-                        size="sm"
-                        onPress={() => navigation.goBack()}
-                        style={{ flex: 1 }}
-                    />
-                    <AppButton
-                        title="Contact Support"
-                        variant="secondary"
-                        size="sm"
-                        onPress={() => navigation.navigate('Support')}
-                        style={{ flex: 1 }}
-                    />
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+                <AppButton
+                    title="Contact Partner"
+                    onPress={() => Linking.openURL(`tel:${DELIVERY_PARTNER.phone}`)}
+                    style={styles.contactButton}
+                />
+            </View>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: Colors.background },
-
-    header: {
-        flexDirection: 'row',
+    root: {
+        flex: 1,
+        backgroundColor: Colors.background,
+    },
+    loadingScreen: {
+        flex: 1,
         alignItems: 'center',
-        paddingHorizontal: Spacing.base,
-        paddingVertical: Spacing.sm,
-        gap: Spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+        justifyContent: 'center',
+        backgroundColor: Colors.background,
     },
-    backBtn: {
-        width: 40, height: 40, borderRadius: 20,
-        backgroundColor: Colors.surface,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    headerTitle: { ...Typography.h5, color: Colors.textPrimary },
-    orderId: { ...Typography.caption, color: Colors.textSecondary },
-    liveChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: `${Colors.error}20`,
-        paddingHorizontal: Spacing.sm,
-        paddingVertical: 4,
-        borderRadius: BorderRadius.full,
-        marginLeft: 'auto',
-    },
-    liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.error },
-    liveText: { ...Typography.labelSmall, color: Colors.error },
-
-    // Steps
-    stepsContainer: { padding: Spacing.base },
-    stepItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.sm,
-    },
-    stepCircle: {
-        width: 36, height: 36, borderRadius: 18,
-        borderWidth: 2,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    stepInfo: { flex: 1 },
-    stepLabel: { ...Typography.labelLarge },
-    stepDesc: { ...Typography.caption, color: Colors.textMuted },
-    stepConnector: {
-        width: 2, height: 24,
-        marginLeft: 17,
-        marginVertical: 2,
-    },
-
-    // ETA
-    etaCard: {
-        marginHorizontal: Spacing.base,
-        borderRadius: BorderRadius['2xl'],
-        overflow: 'hidden',
-        marginBottom: Spacing.base,
-    },
-    etaGradient: {
-        alignItems: 'center',
-        padding: Spacing.xl,
-    },
-    etaLabel: { ...Typography.labelLarge, color: 'rgba(255,255,255,0.8)' },
-    etaTime: {
-        ...Typography.displayMedium,
-        color: Colors.white,
-        marginVertical: Spacing.xs,
-    },
-    etaSub: { ...Typography.bodyMedium, color: 'rgba(255,255,255,0.9)' },
-
-    // Map
-    mapCard: {
-        marginHorizontal: Spacing.base,
-        borderRadius: BorderRadius.xl,
-        overflow: 'hidden',
-        marginBottom: Spacing.base,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    mapPlaceholder: {
-        height: 200,
-        backgroundColor: '#0A0A18',
-        position: 'relative',
-        overflow: 'hidden',
-    },
-    mapGridLine: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.04)' },
-    mapGridH: { left: 0, right: 0, height: 1 },
-    mapGridV: { top: 0, bottom: 0, width: 1 },
-    mapRoad1: {
-        position: 'absolute',
-        top: '45%',
-        left: 0,
-        right: 0,
-        height: 8,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-    },
-    mapRoad2: {
+    headerArea: {
         position: 'absolute',
         top: 0,
-        bottom: 0,
-        left: '55%',
-        width: 8,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-    },
-    deliveryPin: {
-        position: 'absolute',
-        top: '35%',
-        left: 80, // Base position for translate
-        ...Shadows.primary,
-    },
-    deliveryPinGradient: {
-        width: 36, height: 36, borderRadius: 18,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    destinationPin: {
-        position: 'absolute',
-        right: 50,
-        top: '20%',
-        alignItems: 'center',
-    },
-    destPinShadow: {
-        width: 12, height: 4,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        borderRadius: 6,
-        marginTop: -4,
-    },
-    mapOverlay: {
-        position: 'absolute',
-        bottom: Spacing.sm,
-        left: Spacing.sm,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        paddingHorizontal: Spacing.sm,
-        paddingVertical: 4,
-        borderRadius: BorderRadius.sm,
-    },
-    mapLabel: { ...Typography.caption, color: Colors.textSecondary },
-
-    // Partner
-    partnerCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.card,
-        borderRadius: BorderRadius.xl,
-        padding: Spacing.base,
-        marginHorizontal: Spacing.base,
-        marginBottom: Spacing.base,
-        gap: Spacing.sm,
-        ...Shadows.md,
-    },
-    partnerAvatar: {},
-    avatarGradient: {
-        width: 52, height: 52, borderRadius: 26,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    avatarInitial: { ...Typography.h3, color: Colors.white },
-    partnerInfo: { flex: 1 },
-    partnerName: { ...Typography.labelLarge, color: Colors.textPrimary },
-    partnerMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-    partnerRating: { ...Typography.caption, color: Colors.star },
-    partnerSep: { ...Typography.caption, color: Colors.textMuted },
-    partnerVehicle: { ...Typography.caption, color: Colors.textSecondary },
-    partnerActions: { flexDirection: 'row', gap: Spacing.sm },
-    actionBtn: {
-        width: 40, height: 40, borderRadius: 20,
-        backgroundColor: `${Colors.primary}15`,
-        alignItems: 'center', justifyContent: 'center',
-    },
-
-    // Footer
-    footerActions: {
-        flexDirection: 'row',
-        gap: Spacing.sm,
+        left: 0,
+        right: 0,
+        zIndex: 10,
         paddingHorizontal: Spacing.base,
+        paddingTop: Spacing.sm,
+    },
+    headerCard: {
+        backgroundColor: 'rgba(255,255,255,0.76)',
+        borderRadius: BorderRadius.xl,
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 6, height: 6 },
+        shadowOpacity: 0.2,
+        shadowRadius: 14,
+        elevation: 8,
+    },
+    headerButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerCenter: {
+        alignItems: 'center',
+    },
+    headerEyebrow: {
+        ...Typography.labelSmall,
+        color: Colors.primary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    headerTitle: {
+        ...Typography.labelLarge,
+        color: Colors.textPrimary,
+        marginTop: 2,
+    },
+    mapArea: {
+        flex: 1,
+        backgroundColor: '#EDE5DD',
+        overflow: 'hidden',
+    },
+    mapImage: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    mapTint: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(248,247,245,0.1)',
+    },
+    mapFallback: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.sm,
+        backgroundColor: '#E8E1D8',
+    },
+    mapFallbackText: {
+        ...Typography.bodySmall,
+        color: Colors.textSecondary,
+    },
+    riderMarkerWrap: {
+        position: 'absolute',
+        top: '42%',
+        left: '42%',
+        alignItems: 'center',
+    },
+    riderMarker: {
+        width: 72,
+        height: 72,
+        borderRadius: 24,
+        backgroundColor: Colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 4,
+        borderColor: Colors.card,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.32,
+        shadowRadius: 18,
+        elevation: 14,
+    },
+    markerShadow: {
+        width: 20,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(36,26,18,0.16)',
+        marginTop: 10,
+    },
+    destinationMarker: {
+        position: 'absolute',
+        top: '30%',
+        right: '23%',
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        backgroundColor: Colors.textPrimary,
+        borderWidth: 2,
+        borderColor: Colors.card,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    mapControls: {
+        position: 'absolute',
+        right: Spacing.base,
+        top: '36%',
+        gap: Spacing.sm,
+    },
+    mapControlBtn: {
+        width: 46,
+        height: 46,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.76)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    mapControlBtnAccent: {
+        marginTop: Spacing.base,
+    },
+    mapStatusPill: {
+        position: 'absolute',
+        left: Spacing.base,
+        right: Spacing.base,
+        bottom: Spacing.base,
+        borderRadius: BorderRadius.xl,
+        paddingHorizontal: Spacing.base,
+        paddingVertical: Spacing.sm,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+    },
+    mapStatusText: {
+        ...Typography.caption,
+        color: Colors.error,
+        textAlign: 'center',
+    },
+    bottomSheet: {
+        backgroundColor: Colors.card,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingHorizontal: Spacing.base,
+        paddingTop: Spacing.base,
+        paddingBottom: Spacing.xl,
+        shadowColor: '#BFAE9D',
+        shadowOffset: { width: 0, height: -6 },
+        shadowOpacity: 0.14,
+        shadowRadius: 18,
+        elevation: 12,
+    },
+    pullBar: {
+        width: 48,
+        height: 5,
+        borderRadius: 3,
+        backgroundColor: Colors.border,
+        alignSelf: 'center',
+        marginBottom: Spacing.base,
+    },
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    statusIcon: {
+        width: 62,
+        height: 62,
+        borderRadius: 20,
+        backgroundColor: '#FDF0E1',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statusCopy: {
+        flex: 1,
+        marginLeft: Spacing.base,
+    },
+    statusTitle: {
+        ...Typography.h2,
+        color: Colors.textPrimary,
+    },
+    statusSubtitle: {
+        ...Typography.bodySmall,
+        color: Colors.textSecondary,
+        marginTop: 4,
+    },
+    progressTrack: {
+        height: 10,
+        borderRadius: 999,
+        backgroundColor: Colors.surfaceLight,
+        marginTop: Spacing.xl,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 999,
+        backgroundColor: Colors.primary,
+    },
+    errorText: {
+        ...Typography.bodySmall,
+        color: Colors.error,
+        marginTop: Spacing.sm,
+    },
+    partnerCard: {
+        marginTop: Spacing.xl,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        borderRadius: BorderRadius['2xl'],
+        padding: Spacing.base,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 6, height: 6 },
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    partnerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    partnerAvatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 18,
+        backgroundColor: '#F7E1CA',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    partnerInitial: {
+        ...Typography.h3,
+        color: Colors.primaryDark,
+    },
+    partnerName: {
+        ...Typography.labelLarge,
+        color: Colors.textPrimary,
+        marginLeft: Spacing.sm,
+    },
+    partnerMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: Spacing.sm,
+        marginTop: 4,
+        gap: 4,
+    },
+    partnerMeta: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+    },
+    partnerActions: {
+        flexDirection: 'row',
+        gap: Spacing.sm,
+    },
+    partnerActionSecondary: {
+        width: 46,
+        height: 46,
+        borderRadius: 16,
+        backgroundColor: '#FDF0E1',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    partnerActionPrimary: {
+        width: 46,
+        height: 46,
+        borderRadius: 16,
+        backgroundColor: Colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    contactButton: {
+        marginTop: Spacing.xl,
     },
 });
 

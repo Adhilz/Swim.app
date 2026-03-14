@@ -1,6 +1,3 @@
-// ─────────────────────────────────────────────
-//  Screen: Cart + Checkout
-// ─────────────────────────────────────────────
 import React, { useState } from 'react';
 import {
     View,
@@ -15,489 +12,626 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
+import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 import AppButton from '../../components/common/AppButton';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
-import { ADDRESSES, PAYMENT_METHODS } from '../../data/mockData';
+import { PAYMENT_METHODS } from '../../data/mockData';
 import { supabase } from '../../lib/supabase';
+import { useToastStore } from '../../store/toastStore';
+
+const formatCurrency = value => `Rs ${value}`;
+const getImageSource = image => (typeof image === 'string' ? { uri: image } : image);
 
 const CartScreen = ({ navigation }) => {
-    const {
-        items,
-        storeId,
-        storeName,
-        addItem,
-        removeItem,
-        deleteItem,
-        clearCart,
-        getSubtotal,
-        getDeliveryFee,
-        getTaxes,
-        getTotal,
-        applyPromo,
-    } = useCartStore();
-
-    const selectedAddress = useAuthStore(s => s.selectedAddress);
-    const user = useAuthStore(s => s.user);
+    const items = useCartStore(state => state.items);
+    const storeId = useCartStore(state => state.storeId);
+    const storeName = useCartStore(state => state.storeName);
+    const addItem = useCartStore(state => state.addItem);
+    const removeItem = useCartStore(state => state.removeItem);
+    const clearCart = useCartStore(state => state.clearCart);
+    const getSubtotal = useCartStore(state => state.getSubtotal);
+    const getDeliveryFee = useCartStore(state => state.getDeliveryFee);
+    const getTaxes = useCartStore(state => state.getTaxes);
+    const applyPromo = useCartStore(state => state.applyPromo);
+    const selectedAddress = useAuthStore(state => state.selectedAddress);
+    const user = useAuthStore(state => state.user);
+    const showToast = useToastStore(state => state.showToast);
 
     const [promoCode, setPromoCode] = useState('');
     const [appliedPromo, setAppliedPromo] = useState(null);
     const [selectedPayment, setSelectedPayment] = useState('upi');
     const [placingOrder, setPlacingOrder] = useState(false);
 
-    const displayAddress = selectedAddress || null;
+    const subtotal = getSubtotal();
+    const deliveryFee = appliedPromo?.freeDelivery ? 0 : getDeliveryFee();
+    const serviceFee = getTaxes();
+    const discount = appliedPromo
+        ? Math.min(Math.round(subtotal * appliedPromo.discount), appliedPromo.maxDiscount)
+        : 0;
+    const total = subtotal + deliveryFee + serviceFee - discount;
 
     const handleApplyPromo = () => {
-        const promo = applyPromo(promoCode);
-        if (promo) {
-            setAppliedPromo({ code: promoCode.toUpperCase(), ...promo });
-        } else {
-            Alert.alert('Invalid Code', 'The promo code you entered is invalid or expired.');
-        }
-    };
+        const normalizedCode = promoCode.trim().toUpperCase();
+        const promo = applyPromo(normalizedCode);
 
-    const getDiscount = () => {
-        if (!appliedPromo) return 0;
-        const subtotal = getSubtotal();
-        return Math.min(
-            Math.round(subtotal * appliedPromo.discount),
-            appliedPromo.maxDiscount
-        );
+        if (!promo) {
+            Alert.alert('Invalid Code', 'The promo code you entered is invalid or expired.');
+            return;
+        }
+
+        setPromoCode(normalizedCode);
+        setAppliedPromo({ code: normalizedCode, ...promo });
     };
 
     const handlePlaceOrder = async () => {
-        if (!user || (!storeId && items.length > 0)) {
-            Alert.alert('Error', 'Unable to place order. Missing user or store information.');
+        if (!user?.id) {
+            Alert.alert('Sign In Required', 'Please sign in before placing an order.');
+            return;
+        }
+
+        if (!storeId || items.length === 0) {
+            Alert.alert('Cart Error', 'Your cart is empty or missing store information.');
+            return;
+        }
+
+        if (!selectedAddress) {
+            Alert.alert('Address Required', 'Please add a delivery address before checkout.');
             return;
         }
 
         setPlacingOrder(true);
 
-        const subtotalP = getSubtotal();
-        const delivery = getDeliveryFee();
-        const taxes = getTaxes();
-        const discount = getDiscount();
-        const total = subtotalP + delivery + taxes - discount;
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .insert([{
+                    user_id: user.id,
+                    store_id: storeId,
+                    total_amount: total,
+                    status: 'Pending',
+                    items,
+                    delivery_address: selectedAddress,
+                }])
+                .select('*')
+                .single();
 
-        const orderData = {
-            user_id: user.id,
-            store_id: storeId,
-            total_amount: total,
-            status: 'Pending',
-            items: items,
-            delivery_address: displayAddress,
-        };
+            if (error) {
+                throw error;
+            }
 
-        const { data, error } = await supabase
-            .from('orders')
-            .insert([orderData])
-            .select('*')
-            .single();
-
-        setPlacingOrder(false);
-
-        if (error) {
-            Alert.alert('Order Failed', error.message);
-        } else {
             clearCart();
-            navigation.replace('OrderTracking', { orderId: data?.id || 'ORD' + Date.now() });
+            navigation.replace('OrderTracking', {
+                orderId: data?.id ? String(data.id) : `ORD${Date.now()}`,
+            });
+        } catch (error) {
+            if (error?.message?.includes('payment_method')) {
+                showToast({
+                    type: 'error',
+                    title: 'Schema mismatch',
+                    message: 'The orders table does not include payment_method. Checkout now skips that field.',
+                });
+            }
+            Alert.alert('Order Failed', error.message || 'Something went wrong while placing the order.');
+        } finally {
+            setPlacingOrder(false);
         }
     };
 
     if (items.length === 0) {
         return (
             <SafeAreaView style={styles.safe}>
-                <View style={styles.emptyCart}>
-                    <Text style={{ fontSize: 80 }}>🛒</Text>
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyEmoji}>Cart</Text>
                     <Text style={styles.emptyTitle}>Your cart is empty</Text>
-                    <Text style={styles.emptySubtitle}>Add items from a store to get started</Text>
-                    <AppButton
-                        title="Browse Stores"
-                        onPress={() => navigation.navigate('Home')}
-                        style={{ marginTop: Spacing.xl, width: 200 }}
-                    />
+                    <Text style={styles.emptyText}>Add items from a store to begin checkout.</Text>
+                    <AppButton title="Browse Stores" onPress={() => navigation.navigate('Home')} style={styles.emptyButton} />
                 </View>
             </SafeAreaView>
         );
     }
 
-    const subtotal = getSubtotal();
-    const delivery = getDeliveryFee();
-    const taxes = getTaxes();
-    const discount = getDiscount();
-    const total = subtotal + delivery + taxes - discount;
-
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
-            <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+            <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
-            {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+                <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
+                    <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
                 </TouchableOpacity>
-                <View>
-                    <Text style={styles.headerTitle}>Your Cart</Text>
-                    <Text style={styles.headerSub}>{storeName}</Text>
-                </View>
-                <TouchableOpacity onPress={() => Alert.alert('Clear Cart', 'Remove all items?', [
-                    { text: 'Cancel' },
-                    { text: 'Clear', style: 'destructive', onPress: clearCart },
-                ])}>
-                    <Text style={styles.clearText}>Clear</Text>
+                <Text style={styles.headerTitle}>Checkout</Text>
+                <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Support')}>
+                    <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textPrimary} />
                 </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
-                {/* ── Items ── */}
-                <View style={styles.section}>
-                    {items.map(item => (
-                        <View key={item.id} style={styles.itemRow}>
-                            <Image source={{ uri: item.image }} style={styles.itemImage} />
-                            <View style={styles.itemInfo}>
-                                <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                                <Text style={styles.itemPrice}>₹{item.price}</Text>
-                            </View>
-                            <View style={styles.itemControls}>
-                                <TouchableOpacity style={styles.qtyBtn} onPress={() => removeItem(item.id)}>
-                                    <Ionicons name={item.quantity === 1 ? 'trash-outline' : 'remove'} size={16} color={Colors.primary} />
-                                </TouchableOpacity>
-                                <Text style={styles.qtyText}>{item.quantity}</Text>
-                                <TouchableOpacity style={styles.qtyBtnFilled} onPress={() => addItem(item, null, null)}>
-                                    <Ionicons name="add" size={16} color={Colors.white} />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    ))}
-                </View>
-
-                {/* ── Promo Code ── */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Promo Code</Text>
-                    <View style={styles.promoRow}>
-                        <View style={styles.promoInput}>
-                            <Ionicons name="pricetag-outline" size={18} color={Colors.textMuted} />
-                            <TextInput
-                                value={promoCode}
-                                onChangeText={setPromoCode}
-                                placeholder="Enter promo code"
-                                placeholderTextColor={Colors.textMuted}
-                                style={styles.promoTextInput}
-                                autoCapitalize="characters"
-                            />
-                            {appliedPromo && (
-                                <TouchableOpacity onPress={() => { setAppliedPromo(null); setPromoCode(''); }}>
-                                    <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                        <TouchableOpacity
-                            style={[styles.applyBtn, !promoCode && styles.applyBtnDisabled]}
-                            onPress={handleApplyPromo}
-                            disabled={!promoCode}
-                        >
-                            <Text style={styles.applyBtnText}>Apply</Text>
-                        </TouchableOpacity>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <Text style={styles.sectionEyebrow}>Delivery Address</Text>
+                <TouchableOpacity style={styles.addressCard} onPress={() => navigation.navigate('AddressSelect')}>
+                    <View style={styles.addressIcon}>
+                        <Ionicons name="location" size={22} color={Colors.primary} />
                     </View>
-                    {appliedPromo && (
-                        <View style={styles.promoSuccess}>
-                            <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                            <Text style={styles.promoSuccessText}>Saving ₹{discount} with {appliedPromo.code}!</Text>
-                        </View>
-                    )}
+                    <View style={styles.addressCopy}>
+                        <Text style={styles.addressName}>{selectedAddress?.type || 'Home'}</Text>
+                        <Text style={styles.addressText}>
+                            {selectedAddress
+                                ? `${selectedAddress.addressLine1}, ${selectedAddress.addressLine2}`
+                                : 'Add your delivery address'}
+                        </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.summaryHeader}>
+                    <Text style={styles.sectionEyebrow}>Order Summary</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('StoreDetail', { storeId })}>
+                        <Text style={styles.summaryLink}>Add Items +</Text>
+                    </TouchableOpacity>
                 </View>
 
-                {/* ── Bill Summary ── */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Bill Summary</Text>
-                    <View style={styles.billCard}>
-                        {[
-                            { label: 'Item Total', value: `₹${subtotal}` },
-                            { label: 'Delivery Fee', value: delivery === 0 ? 'FREE' : `₹${delivery}`, green: delivery === 0 },
-                            { label: 'Taxes & Charges', value: `₹${taxes}` },
-                            ...(discount > 0 ? [{ label: `Discount (${appliedPromo.code})`, value: `-₹${discount}`, green: true }] : []),
-                        ].map((row, i, arr) => (
-                            <View key={row.label} style={[styles.billRow, i < arr.length - 1 && styles.billRowBorder]}>
-                                <Text style={styles.billLabel}>{row.label}</Text>
-                                <Text style={[styles.billValue, row.green && { color: Colors.success }]}>{row.value}</Text>
+                {items.map(item => (
+                    <View key={item.id} style={styles.itemCard}>
+                        <Image source={getImageSource(item.image)} style={styles.itemImage} />
+                        <View style={styles.itemCopy}>
+                            <Text style={styles.itemName}>{item.name}</Text>
+                            <Text style={styles.itemMeta}>{storeName || 'Custom order'}</Text>
+                            <View style={styles.itemFooter}>
+                                <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
+                                <View style={styles.quantityWrap}>
+                                    <TouchableOpacity onPress={() => removeItem(item.id)}>
+                                        <Ionicons name="remove" size={16} color={Colors.textPrimary} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.quantityText}>{item.quantity}</Text>
+                                    <TouchableOpacity onPress={() => addItem(item, storeId, storeName)}>
+                                        <Ionicons name="add" size={16} color={Colors.textPrimary} />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                        ))}
-                        <View style={[styles.billRow, styles.billTotal]}>
-                            <Text style={styles.billTotalLabel}>Grand Total</Text>
-                            <Text style={styles.billTotalValue}>₹{total}</Text>
                         </View>
                     </View>
-                </View>
+                ))}
 
-                {/* ── Delivery Address ── */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Delivery Address</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('AddressSelect')}>
-                            <Text style={styles.changeLink}>{displayAddress ? 'Change' : 'Add New'}</Text>
-                        </TouchableOpacity>
+                <View style={styles.promoCard}>
+                    <View style={styles.promoInputWrap}>
+                        <Ionicons name="pricetag-outline" size={18} color={Colors.textSecondary} />
+                        <TextInput
+                            style={styles.promoInput}
+                            placeholder="Enter promo code"
+                            placeholderTextColor={Colors.textMuted}
+                            value={promoCode}
+                            onChangeText={setPromoCode}
+                            autoCapitalize="characters"
+                        />
                     </View>
-                    {displayAddress ? (
-                        <View style={styles.addressCard}>
-                            <View style={styles.addressIcon}>
-                                <Ionicons name={displayAddress.type === 'Home' ? 'home' : 'briefcase'} size={18} color={Colors.primary} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.addressType}>{displayAddress.type}</Text>
-                                <Text style={styles.addressText}>{displayAddress.addressLine1}, {displayAddress.addressLine2}</Text>
-                            </View>
-                            <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                    <TouchableOpacity
+                        style={[styles.promoButton, !promoCode.trim() && styles.promoButtonDisabled]}
+                        onPress={handleApplyPromo}
+                        disabled={!promoCode.trim()}
+                    >
+                        <Text style={styles.promoButtonText}>Apply</Text>
+                    </TouchableOpacity>
+                </View>
+                {appliedPromo ? (
+                    <Text style={styles.promoSuccess}>
+                        Applied {appliedPromo.code}. Saving {formatCurrency(discount)}.
+                    </Text>
+                ) : null}
+
+                <View style={styles.billCard}>
+                    <View style={styles.billRow}>
+                        <Text style={styles.billLabel}>Subtotal</Text>
+                        <Text style={styles.billValue}>{formatCurrency(subtotal)}</Text>
+                    </View>
+                    <View style={styles.billRow}>
+                        <Text style={styles.billLabel}>Delivery Fee</Text>
+                        <Text style={styles.billValue}>{deliveryFee === 0 ? 'Free' : formatCurrency(deliveryFee)}</Text>
+                    </View>
+                    <View style={styles.billRow}>
+                        <Text style={styles.billLabel}>Service Fee</Text>
+                        <Text style={styles.billValue}>{formatCurrency(serviceFee)}</Text>
+                    </View>
+                    {discount > 0 ? (
+                        <View style={styles.billRow}>
+                            <Text style={styles.billLabel}>Discount</Text>
+                            <Text style={[styles.billValue, styles.discountValue]}>-{formatCurrency(discount)}</Text>
                         </View>
-                    ) : (
-                        <TouchableOpacity 
-                            style={[styles.addressCard, { borderStyle: 'dashed', backgroundColor: 'transparent' }]}
-                            onPress={() => navigation.navigate('AddressSelect')}
-                        >
-                            <View style={styles.addressIcon}>
-                                <Ionicons name="add" size={18} color={Colors.primary} />
-                            </View>
-                            <Text style={[styles.addressType, { flex: 1 }]}>Please add a delivery address</Text>
-                        </TouchableOpacity>
-                    )}
+                    ) : null}
+                    <View style={styles.billDivider} />
+                    <View style={styles.billRow}>
+                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+                    </View>
                 </View>
 
-                {/* ── Payment Method ── */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Payment Method</Text>
-                    {PAYMENT_METHODS.map(method => (
-                        <TouchableOpacity
-                            key={method.id}
-                            style={[styles.paymentRow, selectedPayment === method.id && styles.paymentRowActive]}
-                            onPress={() => setSelectedPayment(method.id)}
-                        >
-                            <View style={[styles.paymentIcon, { backgroundColor: `${Colors.primary}15` }]}>
-                                <Ionicons name={method.icon} size={20} color={Colors.primary} />
+                <Text style={styles.sectionEyebrow}>Payment Method</Text>
+                {PAYMENT_METHODS.map(method => (
+                    <TouchableOpacity
+                        key={method.id}
+                        style={[styles.paymentRow, selectedPayment === method.id && styles.paymentRowActive]}
+                        onPress={() => setSelectedPayment(method.id)}
+                    >
+                        <View style={styles.paymentLeft}>
+                            <View style={styles.paymentIcon}>
+                                <Ionicons name={method.icon} size={18} color={Colors.primary} />
                             </View>
-                            <View style={{ flex: 1 }}>
+                            <View>
                                 <Text style={styles.paymentName}>{method.name}</Text>
                                 <Text style={styles.paymentDesc}>{method.desc}</Text>
                             </View>
-                            <View style={[styles.radio, selectedPayment === method.id && styles.radioActive]}>
-                                {selectedPayment === method.id && <View style={styles.radioDot} />}
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                        </View>
+                        <View style={[styles.radio, selectedPayment === method.id && styles.radioActive]}>
+                            {selectedPayment === method.id ? <View style={styles.radioDot} /> : null}
+                        </View>
+                    </TouchableOpacity>
+                ))}
             </ScrollView>
 
-            {/* ── Bottom CTA ── */}
-            <View style={styles.bottomBar}>
-                <View style={styles.totalPreview}>
-                    <Text style={styles.totalPreviewLabel}>Total Amount</Text>
-                    <Text style={styles.totalPreviewValue}>₹{total}</Text>
+            <View style={styles.payBar}>
+                <View style={styles.payTrack}>
+                    <View style={styles.payThumb}>
+                        <Ionicons name="chevron-forward" size={26} color={Colors.white} />
+                    </View>
+                    <Text style={styles.payText}>Slide to Pay {formatCurrency(total)}</Text>
                 </View>
-                <AppButton
-                    title={`Place Order  ₹${total}`}
-                    onPress={handlePlaceOrder}
-                    loading={placingOrder}
-                    disabled={!displayAddress}
-                    style={styles.placeOrderBtn}
-                />
+                <TouchableOpacity style={styles.payOverlay} onPress={handlePlaceOrder} disabled={placingOrder}>
+                    <Text style={styles.payOverlayText}>{placingOrder ? 'Placing Order...' : ''}</Text>
+                </TouchableOpacity>
             </View>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: Colors.background },
-
+    safe: {
+        flex: 1,
+        backgroundColor: Colors.background,
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: Spacing.base,
-        paddingVertical: Spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-        gap: Spacing.sm,
+        paddingTop: Spacing.sm,
+        paddingBottom: Spacing.lg,
     },
-    backBtn: {
-        width: 40, height: 40, borderRadius: 20,
-        backgroundColor: Colors.surface,
-        alignItems: 'center', justifyContent: 'center',
+    headerButton: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.82)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 5, height: 5 },
+        shadowOpacity: 0.22,
+        shadowRadius: 14,
+        elevation: 8,
     },
-    headerTitle: { ...Typography.h4, color: Colors.textPrimary },
-    headerSub: { ...Typography.caption, color: Colors.textSecondary },
-    clearText: { ...Typography.labelMedium, color: Colors.error },
-
-    section: {
+    headerTitle: {
+        ...Typography.h3,
+        color: Colors.textPrimary,
+    },
+    content: {
         paddingHorizontal: Spacing.base,
-        paddingTop: Spacing.base,
+        paddingBottom: 150,
+    },
+    sectionEyebrow: {
+        ...Typography.labelSmall,
+        color: Colors.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 1.2,
         marginBottom: Spacing.sm,
     },
-    sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    sectionTitle: { ...Typography.h5, color: Colors.textPrimary, marginBottom: Spacing.sm },
-    changeLink: { ...Typography.labelMedium, color: Colors.primary },
-
-    itemRow: {
+    addressCard: {
+        backgroundColor: 'rgba(255,255,255,0.78)',
+        borderRadius: BorderRadius['2xl'],
+        padding: Spacing.base,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.card,
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.sm,
+        marginBottom: Spacing.xl,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 7, height: 7 },
+        shadowOpacity: 0.2,
+        shadowRadius: 18,
+        elevation: 8,
+    },
+    addressIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: '#FDF0E1',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    addressCopy: {
+        flex: 1,
+        marginLeft: Spacing.base,
+    },
+    addressName: {
+        ...Typography.labelLarge,
+        color: Colors.textPrimary,
+    },
+    addressText: {
+        ...Typography.bodySmall,
+        color: Colors.textSecondary,
+        marginTop: 2,
+    },
+    summaryHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: Spacing.sm,
-        gap: Spacing.sm,
     },
-    itemImage: { width: 60, height: 60, borderRadius: BorderRadius.md },
-    itemInfo: { flex: 1 },
-    itemName: { ...Typography.labelLarge, color: Colors.textPrimary },
-    itemPrice: { ...Typography.bodySmall, color: Colors.primary, marginTop: 4 },
-    itemControls: {
+    summaryLink: {
+        ...Typography.labelMedium,
+        color: Colors.primary,
+        fontWeight: '800',
+    },
+    itemCard: {
+        backgroundColor: 'rgba(255,255,255,0.78)',
+        borderRadius: BorderRadius['2xl'],
+        padding: Spacing.base,
+        flexDirection: 'row',
+        marginBottom: Spacing.base,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 7, height: 7 },
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
+        elevation: 7,
+    },
+    itemImage: {
+        width: 84,
+        height: 84,
+        borderRadius: 18,
+    },
+    itemCopy: {
+        flex: 1,
+        marginLeft: Spacing.base,
+    },
+    itemName: {
+        ...Typography.labelLarge,
+        color: Colors.textPrimary,
+    },
+    itemMeta: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+        marginTop: 4,
+    },
+    itemFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: Spacing.base,
+    },
+    itemPrice: {
+        ...Typography.h4,
+        color: Colors.primary,
+    },
+    quantityWrap: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 16,
+        backgroundColor: Colors.surfaceLight,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+    },
+    quantityText: {
+        ...Typography.labelMedium,
+        color: Colors.textPrimary,
+        fontWeight: '800',
+    },
+    promoCard: {
+        flexDirection: 'row',
         gap: Spacing.sm,
-        backgroundColor: Colors.surface,
-        borderRadius: BorderRadius.md,
-        padding: 4,
+        marginBottom: Spacing.sm,
     },
-    qtyBtn: {
-        width: 28, height: 28, borderRadius: 14,
-        borderWidth: 1, borderColor: Colors.primary,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    qtyBtnFilled: {
-        width: 28, height: 28, borderRadius: 14,
-        backgroundColor: Colors.primary,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    qtyText: { ...Typography.labelMedium, color: Colors.textPrimary, minWidth: 20, textAlign: 'center' },
-
-    // Promo
-    promoRow: { flexDirection: 'row', gap: Spacing.sm },
-    promoInput: {
+    promoInputWrap: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
-        borderRadius: BorderRadius.lg,
-        paddingHorizontal: Spacing.sm,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        gap: Spacing.sm,
-        height: 48,
-    },
-    promoTextInput: { flex: 1, ...Typography.bodyMedium, color: Colors.textPrimary },
-    applyBtn: {
-        backgroundColor: Colors.primary,
-        borderRadius: BorderRadius.lg,
+        backgroundColor: 'rgba(255,255,255,0.78)',
+        borderRadius: BorderRadius.xl,
         paddingHorizontal: Spacing.base,
+        height: 54,
+    },
+    promoInput: {
+        flex: 1,
+        marginLeft: 8,
+        color: Colors.textPrimary,
+    },
+    promoButton: {
+        width: 92,
+        borderRadius: BorderRadius.xl,
+        backgroundColor: Colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
-        height: 48,
     },
-    applyBtnDisabled: { backgroundColor: Colors.surfaceLight },
-    applyBtnText: { ...Typography.labelLarge, color: Colors.white },
+    promoButtonDisabled: {
+        opacity: 0.45,
+    },
+    promoButtonText: {
+        ...Typography.labelLarge,
+        color: Colors.white,
+    },
     promoSuccess: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginTop: Spacing.sm,
-        backgroundColor: `${Colors.success}15`,
-        padding: Spacing.sm,
-        borderRadius: BorderRadius.md,
+        ...Typography.bodySmall,
+        color: Colors.success,
+        marginBottom: Spacing.lg,
     },
-    promoSuccessText: { ...Typography.bodySmall, color: Colors.success },
-
-    // Bill
     billCard: {
-        backgroundColor: Colors.card,
-        borderRadius: BorderRadius.xl,
-        overflow: 'hidden',
+        backgroundColor: 'rgba(255,255,255,0.78)',
+        borderRadius: BorderRadius['3xl'],
+        padding: Spacing.xl,
+        marginBottom: Spacing.xl,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.22,
+        shadowRadius: 18,
+        elevation: 8,
     },
     billRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: Spacing.base,
-        paddingVertical: Spacing.sm,
+        marginBottom: Spacing.sm,
     },
-    billRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
-    billLabel: { ...Typography.bodyMedium, color: Colors.textSecondary },
-    billValue: { ...Typography.bodyMedium, color: Colors.textPrimary },
-    billTotal: {
-        borderTopWidth: 2,
-        borderTopColor: Colors.border,
-        paddingVertical: Spacing.base,
+    billLabel: {
+        ...Typography.bodyMedium,
+        color: Colors.textSecondary,
     },
-    billTotalLabel: { ...Typography.h5, color: Colors.textPrimary },
-    billTotalValue: { ...Typography.h4, color: Colors.primary },
-
-    // Address
-    addressCard: {
+    billValue: {
+        ...Typography.labelMedium,
+        color: Colors.textPrimary,
+    },
+    discountValue: {
+        color: Colors.success,
+    },
+    billDivider: {
+        borderTopWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: Colors.border,
+        marginTop: Spacing.sm,
+        marginBottom: Spacing.sm,
+    },
+    totalLabel: {
+        ...Typography.h3,
+        color: Colors.textPrimary,
+    },
+    totalValue: {
+        ...Typography.h2,
+        color: Colors.primary,
+    },
+    paymentRow: {
+        backgroundColor: 'rgba(255,255,255,0.78)',
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.base,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: Spacing.sm,
+    },
+    paymentRowActive: {
+        borderWidth: 1.5,
+        borderColor: '#F0C89A',
+    },
+    paymentLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.sm,
-        backgroundColor: Colors.card,
-        borderRadius: BorderRadius.xl,
-        padding: Spacing.base,
-        borderWidth: 1.5,
+    },
+    paymentIcon: {
+        width: 42,
+        height: 42,
+        borderRadius: 14,
+        backgroundColor: '#FDF0E1',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    paymentName: {
+        ...Typography.labelLarge,
+        color: Colors.textPrimary,
+    },
+    paymentDesc: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+        marginTop: 2,
+    },
+    radio: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: Colors.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    radioActive: {
         borderColor: Colors.primary,
     },
-    addressIcon: {
-        width: 40, height: 40, borderRadius: 20,
-        backgroundColor: `${Colors.primary}15`,
-        alignItems: 'center', justifyContent: 'center',
+    radioDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: Colors.primary,
     },
-    addressType: { ...Typography.labelLarge, color: Colors.textPrimary },
-    addressText: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
-
-    // Payment
-    paymentRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.base,
-        backgroundColor: Colors.card,
-        borderRadius: BorderRadius.xl,
-        padding: Spacing.base,
-        marginBottom: Spacing.sm,
-        borderWidth: 1.5,
-        borderColor: Colors.border,
-    },
-    paymentRowActive: { borderColor: Colors.primary },
-    paymentIcon: {
-        width: 44, height: 44, borderRadius: 22,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    paymentName: { ...Typography.labelLarge, color: Colors.textPrimary },
-    paymentDesc: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
-    radio: {
-        width: 20, height: 20, borderRadius: 10,
-        borderWidth: 2, borderColor: Colors.border,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    radioActive: { borderColor: Colors.primary },
-    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
-
-    // Bottom
-    bottomBar: {
+    payBar: {
         position: 'absolute',
-        bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: Colors.background,
-        borderTopWidth: 1,
-        borderTopColor: Colors.border,
-        padding: Spacing.base,
-        paddingBottom: Spacing['2xl'],
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.base,
+        bottom: 0,
+        paddingHorizontal: Spacing.base,
+        paddingTop: Spacing.base,
+        paddingBottom: Spacing.xl,
+        backgroundColor: 'rgba(248,247,245,0.96)',
     },
-    totalPreview: {},
-    totalPreviewLabel: { ...Typography.caption, color: Colors.textSecondary },
-    totalPreviewValue: { ...Typography.h4, color: Colors.primary },
-    placeOrderBtn: { flex: 1 },
-
-    // Empty
-    emptyCart: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing['2xl'] },
-    emptyTitle: { ...Typography.h3, color: Colors.textPrimary, marginTop: Spacing.base },
-    emptySubtitle: { ...Typography.bodyMedium, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.sm },
+    payTrack: {
+        height: 78,
+        borderRadius: 39,
+        backgroundColor: '#EFE9E3',
+        justifyContent: 'center',
+        paddingLeft: 16,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 5, height: 5 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    payThumb: {
+        width: 62,
+        height: 62,
+        borderRadius: 31,
+        backgroundColor: Colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    payText: {
+        position: 'absolute',
+        left: 92,
+        right: 20,
+        textAlign: 'center',
+        ...Typography.labelMedium,
+        color: Colors.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    payOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        top: 16,
+        left: Spacing.base,
+        right: Spacing.base,
+        bottom: Spacing.xl,
+        borderRadius: 39,
+    },
+    payOverlayText: {
+        color: 'transparent',
+    },
+    emptyState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: Spacing['2xl'],
+    },
+    emptyEmoji: {
+        ...Typography.displaySmall,
+        color: Colors.primary,
+        fontWeight: '800',
+    },
+    emptyTitle: {
+        ...Typography.h2,
+        color: Colors.textPrimary,
+        marginTop: Spacing.base,
+    },
+    emptyText: {
+        ...Typography.bodyMedium,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        marginTop: Spacing.sm,
+    },
+    emptyButton: {
+        marginTop: Spacing.xl,
+        width: 220,
+    },
 });
 
 export default CartScreen;

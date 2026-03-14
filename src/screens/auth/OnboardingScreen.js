@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
 import AppButton from '../../components/common/AppButton';
 import { useAuthStore } from '../../store/authStore';
+import { useToastStore } from '../../store/toastStore';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -32,7 +33,8 @@ const OnboardingScreen = ({ navigation }) => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const otpRefs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
-    const { sendOtp, verifyOtp } = useAuthStore();
+    const { sendOtp, verifyOtp, continueWithGoogle } = useAuthStore();
+    const showToast = useToastStore(s => s.showToast);
 
     // ── Splash animations ────────────────────
     const logoScale = useRef(new Animated.Value(0.3)).current;
@@ -94,7 +96,11 @@ const OnboardingScreen = ({ navigation }) => {
         if (res.success) {
             setStep('otp');
         } else {
-            alert(res.error || 'Failed to send OTP code.');
+            showToast({
+                type: 'error',
+                title: 'OTP Failed',
+                message: res.error || 'Failed to send OTP code.',
+            });
         }
     };
 
@@ -113,7 +119,11 @@ const OnboardingScreen = ({ navigation }) => {
         const res = await verifyOtp(phone, code);
         setLoading(false);
         if (!res.success) {
-            alert(res.error || 'Invalid OTP code.');
+            showToast({
+                type: 'error',
+                title: 'Invalid OTP',
+                message: res.error || 'Invalid OTP code.',
+            });
         }
     };
 
@@ -196,14 +206,40 @@ const OnboardingScreen = ({ navigation }) => {
                 )}
 
                 {/* ════════════════════════════════════════
-                     PHONE NUMBER ENTRY
+                     LOGIN OPTIONS
                    ════════════════════════════════════════ */}
                 {step === 'phone' && (
                     <ScrollView contentContainerStyle={styles.authContainer} keyboardShouldPersistTaps="handled">
                         <View style={styles.authHeader}>
                             <Image source={require('../../../assets/logo.png')} style={styles.authLogo} />
-                            <Text style={styles.authTitle}>Enter your{'\n'}mobile number</Text>
-                            <Text style={styles.authSubtitle}>We'll send a 6-digit OTP to verify your number</Text>
+                            <Text style={styles.authTitle}>Welcome to Swim</Text>
+                            <Text style={styles.authSubtitle}>Sign in or create an account to get started</Text>
+                        </View>
+
+                        {/* Social Login Main */}
+                        <TouchableOpacity 
+                            style={styles.googleBtn}
+                            onPress={async () => {
+                                const res = await continueWithGoogle();
+                                if (!res.success) {
+                                    showToast({
+                                        type: 'error',
+                                        title: 'Google sign-in failed',
+                                        message: res.error || 'Failed to authenticate with Google',
+                                    });
+                                }
+                            }}
+                            disabled={loading}
+                        >
+                            <Ionicons name="logo-google" size={22} color={Colors.surface} style={{ marginRight: Spacing.sm }} />
+                            <Text style={styles.googleBtnText}>Continue with Google</Text>
+                        </TouchableOpacity>
+
+                        {/* Divider */}
+                        <View style={styles.divider}>
+                            <View style={styles.dividerLine} />
+                            <Text style={styles.dividerText}>or continue with mobile</Text>
+                            <View style={styles.dividerLine} />
                         </View>
 
                         {/* Phone Input */}
@@ -222,7 +258,6 @@ const OnboardingScreen = ({ navigation }) => {
                                 value={phone}
                                 onChangeText={setPhone}
                                 selectionColor={Colors.primary}
-                                autoFocus
                             />
                         </View>
 
@@ -234,27 +269,7 @@ const OnboardingScreen = ({ navigation }) => {
                             style={styles.authBtn}
                         />
 
-                        {/* Divider */}
-                        <View style={styles.divider}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>or continue with</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
-
-                        {/* Social Login */}
-                        <View style={styles.socialRow}>
-                            {[
-                                { name: 'Google', icon: 'logo-google', color: '#EA4335' },
-                                { name: 'Apple', icon: 'logo-apple', color: Colors.white },
-                            ].map(s => (
-                                <TouchableOpacity key={s.name} style={styles.socialBtn}>
-                                    <Ionicons name={s.icon} size={22} color={s.color} />
-                                    <Text style={styles.socialText}>{s.name}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <Text style={styles.termsText}>
+                        <Text style={[styles.termsText, { marginTop: Spacing.xl }]}>
                             By continuing, you agree to our{' '}
                             <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
                             <Text style={styles.termsLink}>Privacy Policy</Text>
@@ -445,6 +460,19 @@ const styles = StyleSheet.create({
     divider: { flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.xl, gap: Spacing.sm },
     dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
     dividerText: { ...Typography.bodySmall, color: Colors.textMuted },
+
+    // ── Google ───────────────────────────────
+    googleBtn: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.lg,
+        paddingVertical: 14,
+        marginBottom: Spacing.md,
+    },
+    googleBtnText: { ...Typography.labelLarge, color: Colors.background, fontWeight: '700' },
 
     // ── Social ───────────────────────────────
     socialRow: { flexDirection: 'row', gap: Spacing.base, marginBottom: Spacing.xl },

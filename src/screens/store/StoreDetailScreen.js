@@ -1,171 +1,110 @@
-// ─────────────────────────────────────────────
-//  Screen: Store Detail (Swim.ai Premium)
-// ─────────────────────────────────────────────
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    Animated,
     Image,
     TouchableOpacity,
-    Dimensions,
     StatusBar,
-    FlatList,
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../theme';
+import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 import ProductCard from '../../components/product/ProductCard';
 import { useCartStore } from '../../store/cartStore';
 import { useDataStore } from '../../store/dataStore';
 
-const { width: W, height: H } = Dimensions.get('window');
-const HERO_H = 360;
-
 const StoreDetailScreen = ({ route, navigation }) => {
     const { storeId } = route.params;
-    const { stores, products } = useDataStore();
-
-    // Find the current store and its associated products locally from the zustand store cache
-    const store = useMemo(() => stores.find(s => s.id === storeId), [stores, storeId]);
-    const storeProducts = useMemo(() => products.filter(p => p.storeId === storeId), [products, storeId]);
-
-    // Derive category tabs from actual product categories instead of hardcoding
-    const productCategories = useMemo(() => {
-        const cats = [...new Set(storeProducts.map(p => p.category))];
-        return cats.length > 0 ? cats : ['All'];
-    }, [storeProducts]);
-
-    const scrollY = useRef(new Animated.Value(0)).current;
-    const [selectedCategory, setSelectedCategory] = useState(productCategories[0]);
+    const stores = useDataStore(state => state.stores);
+    const products = useDataStore(state => state.products);
+    const totalItems = useCartStore(state => state.getTotalItems());
+    const cartTotal = useCartStore(state => state.getTotal());
+    const store = useMemo(() => stores.find(item => item.id === storeId), [stores, storeId]);
+    const storeProducts = useMemo(() => products.filter(item => item.storeId === storeId), [products, storeId]);
+    const categories = useMemo(() => ['All', ...new Set(storeProducts.map(item => item.category).filter(Boolean))], [storeProducts]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
 
     const filteredProducts = selectedCategory === 'All'
         ? storeProducts
-        : storeProducts.filter(p => p.category === selectedCategory);
+        : storeProducts.filter(item => item.category === selectedCategory);
 
-    const heroScale = scrollY.interpolate({
-        inputRange: [-100, 0, 100],
-        outputRange: [1.2, 1, 1],
-        extrapolate: 'clamp'
-    });
-
-    const headerBgOpacity = scrollY.interpolate({
-        inputRange: [HERO_H - 120, HERO_H - 60],
-        outputRange: [0, 1],
-        extrapolate: 'clamp'
-    });
-
-    // Handle case where store might not be found (e.g., invalid storeId)
     if (!store) {
         return (
-            <View style={styles.root}>
-                <Text style={{ color: Colors.white, textAlign: 'center', marginTop: 50 }}>Store not found.</Text>
-            </View>
+            <SafeAreaView style={styles.safe}>
+                <Text style={styles.missingText}>Store not found.</Text>
+            </SafeAreaView>
         );
     }
 
     return (
-        <View style={styles.root}>
+        <View style={styles.safe}>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-            {/* ── Fixed Premium Header ── */}
-            <Animated.View style={[styles.fixedHeader, { backgroundColor: Colors.background, opacity: headerBgOpacity }]}>
-                <SafeAreaView edges={['top']}>
-                    <View style={styles.headerContent}>
-                        <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.goBack()}>
-                            <Ionicons name="arrow-back" size={22} color={Colors.white} />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>{store.name}</Text>
-                        <TouchableOpacity style={styles.headerIcon}>
-                            <Ionicons name="share-outline" size={22} color={Colors.white} />
-                        </TouchableOpacity>
-                    </View>
-                </SafeAreaView>
-            </Animated.View>
-
-            {/* ── Floating Back Button (for Hero view) ── */}
-            <SafeAreaView edges={['top']} style={styles.floatingHeader}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity style={styles.glassIcon} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={22} color={Colors.white} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.glassIcon}>
-                        <Ionicons name="heart-outline" size={22} color={Colors.white} />
-                    </TouchableOpacity>
-                </View>
-            </SafeAreaView>
-
-            <Animated.ScrollView
-                onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                    { useNativeDriver: true }
-                )}
-                stickyHeaderIndices={[2]}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 140 }}
-            >
-                {/* Header Image & Info */}
-                <Animated.View style={[styles.hero, { transform: [{ scale: heroScale }] }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+                <View style={styles.hero}>
                     <Image
                         source={typeof store.image === 'string' ? { uri: store.image } : store.image}
                         style={styles.heroImage}
                         resizeMode="cover"
                     />
-                    <LinearGradient
-                        colors={['transparent', 'rgba(1,4,9,0.7)', Colors.background]}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={styles.heroContent}>
-                        <View style={styles.badgeLine}>
-                            <View style={styles.goldBadge}>
-                                <Ionicons name="star" size={14} color={Colors.star} />
-                                <Text style={styles.goldText}>{store.rating}</Text>
-                            </View>
-                            <Text style={styles.reviewText}>{store.reviewCount} Reviews</Text>
+                    <View style={styles.heroOverlay} />
+                    <SafeAreaView edges={['top']} style={styles.heroSafe}>
+                        <View style={styles.heroHeader}>
+                            <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+                                <Ionicons name="arrow-back" size={20} color={Colors.white} />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.iconButton}>
+                                <Ionicons name="heart-outline" size={20} color={Colors.white} />
+                            </TouchableOpacity>
                         </View>
-                        <Text style={styles.heroName}>{store.name}</Text>
-                        <Text style={styles.heroMeta}>{store.cuisine} • {store.location}</Text>
-                    </View>
-                </Animated.View>
-
-                {/* 2. Store Specs */}
-                <View style={styles.specsRow}>
-                    <View style={styles.spec}>
-                        <Text style={styles.specVal}>{store.deliveryTime}</Text>
-                        <Text style={styles.specLab}>Delivery</Text>
-                    </View>
-                    <View style={styles.divider} />
-                    <View style={styles.spec}>
-                        <Text style={styles.specVal}>₹{store.minOrder}</Text>
-                        <Text style={styles.specLab}>Min. Order</Text>
-                    </View>
-                    <View style={styles.divider} />
-                    <View style={styles.spec}>
-                        <Text style={styles.specVal}>{store.distance}</Text>
-                        <Text style={styles.specLab}>Distance</Text>
+                    </SafeAreaView>
+                    <View style={styles.heroCopy}>
+                        <View style={styles.ratingBadge}>
+                            <Ionicons name="star" size={13} color={Colors.star} />
+                            <Text style={styles.ratingText}>{store.rating}</Text>
+                            <Text style={styles.reviewText}>{store.reviewCount} reviews</Text>
+                        </View>
+                        <Text style={styles.heroTitle}>{store.name}</Text>
+                        <Text style={styles.heroMeta}>{store.cuisine} · {store.location}</Text>
                     </View>
                 </View>
 
-                {/* 3. Sticky Categories — derived from actual products */}
-                <View style={styles.categoryContainer}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-                        {productCategories.map(cat => (
+                <View style={styles.summaryCard}>
+                    <View style={styles.summaryItem}>
+                        <Text style={styles.summaryValue}>{store.deliveryTime}</Text>
+                        <Text style={styles.summaryLabel}>Delivery</Text>
+                    </View>
+                    <View style={styles.summaryDivider} />
+                    <View style={styles.summaryItem}>
+                        <Text style={styles.summaryValue}>Rs {store.minOrder}</Text>
+                        <Text style={styles.summaryLabel}>Min order</Text>
+                    </View>
+                    <View style={styles.summaryDivider} />
+                    <View style={styles.summaryItem}>
+                        <Text style={styles.summaryValue}>{store.distance}</Text>
+                        <Text style={styles.summaryLabel}>Distance</Text>
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Browse the menu</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+                        {categories.map(category => (
                             <TouchableOpacity
-                                key={cat}
-                                onPress={() => setSelectedCategory(cat)}
-                                style={[styles.catItem, selectedCategory === cat && styles.catItemActive]}
+                                key={category}
+                                style={[styles.categoryPill, selectedCategory === category && styles.categoryPillActive]}
+                                onPress={() => setSelectedCategory(category)}
                             >
-                                <Text style={[styles.catText, selectedCategory === cat && styles.catTextActive]}>{cat}</Text>
+                                <Text style={[styles.categoryText, selectedCategory === category && styles.categoryTextActive]}>
+                                    {category}
+                                </Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
                 </View>
 
-                {/* 4. Products */}
-                <View style={styles.productList}>
+                <View style={styles.section}>
                     {filteredProducts.map(product => (
                         <ProductCard
                             key={product.id}
@@ -174,146 +113,196 @@ const StoreDetailScreen = ({ route, navigation }) => {
                             storeName={store.name}
                         />
                     ))}
-
-                    {filteredProducts.length === 0 && (
-                        <View style={styles.emptyProducts}>
-                            <Text style={{ fontSize: 48 }}>🍽️</Text>
-                            <Text style={styles.emptyText}>No items in this category</Text>
-                        </View>
-                    )}
                 </View>
-            </Animated.ScrollView>
+            </ScrollView>
 
-            {/* ── Cart Action ── */}
-            <View style={styles.bottomBar}>
-                <LinearGradient colors={['rgba(1,4,9,0.8)', 'rgba(1,4,9,1)']} style={styles.bottomBlur}>
-                    <TouchableOpacity style={styles.checkoutBtn}>
-                        <Text style={styles.checkoutText}>View Selected Items</Text>
-                        <View style={styles.checkoutIcon}>
+            {totalItems > 0 ? (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity style={styles.bottomButton} onPress={() => navigation.navigate('Cart')}>
+                        <View>
+                            <Text style={styles.bottomTitle}>{totalItems} items selected</Text>
+                            <Text style={styles.bottomSubtitle}>Rs {cartTotal} · View cart and checkout</Text>
+                        </View>
+                        <View style={styles.bottomArrow}>
                             <Ionicons name="chevron-forward" size={20} color={Colors.white} />
                         </View>
                     </TouchableOpacity>
-                </LinearGradient>
-            </View>
+                </View>
+            ) : null}
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: Colors.background },
-
-    fixedHeader: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 20,
+    safe: {
+        flex: 1,
+        backgroundColor: Colors.background,
     },
-    floatingHeader: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 15,
+    content: {
+        paddingBottom: 132,
     },
-    headerContent: {
+    hero: {
+        height: 360,
+        justifyContent: 'space-between',
+    },
+    heroImage: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    heroOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(36,26,18,0.24)',
+    },
+    heroSafe: {
+        paddingHorizontal: Spacing.base,
+    },
+    heroHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: Spacing.base,
-        height: 60,
+        paddingTop: Spacing.sm,
     },
-    headerTitle: { ...Typography.h4, color: Colors.white, textAlign: 'center', flex: 1 },
-    headerIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    glassIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.4)',
+    iconButton: {
+        width: 42,
+        height: 42,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.22)',
         alignItems: 'center',
         justifyContent: 'center',
     },
-
-    hero: { height: HERO_H, width: W, justifyContent: 'flex-end', overflow: 'hidden' },
-    heroImage: { ...StyleSheet.absoluteFillObject },
-    heroContent: { padding: Spacing.xl, paddingBottom: Spacing.base },
-    badgeLine: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: Spacing.sm },
-    goldBadge: {
+    heroCopy: {
+        paddingHorizontal: Spacing.base,
+        paddingBottom: Spacing.xl,
+    },
+    ratingBadge: {
+        alignSelf: 'flex-start',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        backgroundColor: 'rgba(0,150,199,0.3)',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: BorderRadius.sm,
-    },
-    goldText: { ...Typography.labelSmall, color: Colors.primaryLight, fontWeight: '700' },
-    reviewText: { ...Typography.caption, color: Colors.textSecondary },
-    heroName: { ...Typography.h1, color: Colors.white, fontSize: 36 },
-    heroMeta: { ...Typography.bodyMedium, color: Colors.textSecondary, marginTop: 4 },
-
-    specsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: Spacing.xl,
-        backgroundColor: Colors.surface,
-        marginHorizontal: Spacing.base,
-        borderRadius: BorderRadius['2xl'],
-        marginTop: -Spacing.xl,
-        borderWidth: 1,
-        borderColor: Colors.glassBorder,
-    },
-    spec: { alignItems: 'center' },
-    specVal: { ...Typography.h5, color: Colors.white },
-    specLab: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
-    divider: { width: 1, height: 24, backgroundColor: Colors.border },
-
-    categoryContainer: {
-        backgroundColor: Colors.background,
-        paddingVertical: Spacing.base,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-    },
-    categoryScroll: { paddingHorizontal: Spacing.base },
-    catItem: {
-        paddingHorizontal: 20,
-        paddingVertical: 8,
+        gap: 6,
+        backgroundColor: 'rgba(255,255,255,0.84)',
         borderRadius: BorderRadius.full,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        marginBottom: Spacing.sm,
+    },
+    ratingText: {
+        ...Typography.labelSmall,
+        color: Colors.textPrimary,
+    },
+    reviewText: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+    },
+    heroTitle: {
+        ...Typography.h1,
+        color: Colors.white,
+    },
+    heroMeta: {
+        ...Typography.bodyMedium,
+        color: 'rgba(255,255,255,0.86)',
+        marginTop: 4,
+    },
+    summaryCard: {
+        marginHorizontal: Spacing.base,
+        marginTop: -24,
+        backgroundColor: 'rgba(255,255,255,0.86)',
+        borderRadius: BorderRadius['2xl'],
+        flexDirection: 'row',
+        paddingVertical: Spacing.base,
+        shadowColor: '#D6C9BE',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 18,
+        elevation: 8,
+    },
+    summaryItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    summaryValue: {
+        ...Typography.labelLarge,
+        color: Colors.textPrimary,
+    },
+    summaryLabel: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+        marginTop: 4,
+    },
+    summaryDivider: {
+        width: 1,
+        backgroundColor: Colors.border,
+    },
+    section: {
+        paddingHorizontal: Spacing.base,
+        marginTop: Spacing.xl,
+    },
+    sectionTitle: {
+        ...Typography.h3,
+        color: Colors.textPrimary,
+        marginBottom: Spacing.base,
+    },
+    categoryRow: {
+        paddingRight: Spacing.base,
+    },
+    categoryPill: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: BorderRadius.full,
+        backgroundColor: 'rgba(255,255,255,0.82)',
         marginRight: 8,
-        backgroundColor: Colors.surface,
-        borderWidth: 1,
-        borderColor: Colors.border,
     },
-    catItemActive: {
-        backgroundColor: Colors.primary,
-        borderColor: Colors.primary,
+    categoryPillActive: {
+        backgroundColor: '#FDF0E1',
     },
-    catText: { ...Typography.labelMedium, color: Colors.textSecondary },
-    catTextActive: { color: Colors.white, fontWeight: '700' },
-
-    productList: { paddingHorizontal: Spacing.base, paddingTop: Spacing.base },
-
-    emptyProducts: { alignItems: 'center', paddingVertical: Spacing['3xl'] },
-    emptyText: { ...Typography.bodyMedium, color: Colors.textSecondary, marginTop: Spacing.sm },
-
+    categoryText: {
+        ...Typography.labelMedium,
+        color: Colors.textSecondary,
+    },
+    categoryTextActive: {
+        color: Colors.primaryDark,
+    },
     bottomBar: {
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: Spacing.xl,
-        paddingBottom: 40,
+        left: Spacing.base,
+        right: Spacing.base,
+        bottom: 104,
     },
-    bottomBlur: { borderRadius: BorderRadius['2xl'], overflow: 'hidden', borderWidth: 1, borderColor: Colors.glassBorder },
-    checkoutBtn: {
+    bottomButton: {
+        backgroundColor: Colors.primary,
+        borderRadius: BorderRadius['2xl'],
+        paddingHorizontal: Spacing.base,
+        paddingVertical: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 16,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.24,
+        shadowRadius: 18,
+        elevation: 10,
     },
-    checkoutText: { ...Typography.labelLarge, color: Colors.white },
-    checkoutIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+    bottomTitle: {
+        ...Typography.labelLarge,
+        color: Colors.white,
+    },
+    bottomSubtitle: {
+        ...Typography.caption,
+        color: 'rgba(255,255,255,0.82)',
+        marginTop: 4,
+    },
+    bottomArrow: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    missingText: {
+        ...Typography.bodyLarge,
+        color: Colors.textPrimary,
+        textAlign: 'center',
+        marginTop: 60,
+    },
 });
 
 export default StoreDetailScreen;
