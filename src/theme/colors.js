@@ -1,8 +1,8 @@
 export const Colors = {
-    primary: '#F48C25',
-    primaryDark: '#D96C08',
-    primaryLight: '#F8B15F',
-    primaryGradient: ['#F6A64B', '#F48C25'],
+    primary: '#4BA3F4',
+    primaryDark: '#2176C1',
+    primaryLight: '#B3D8FD',
+    primaryGradient: ['#B3D8FD', '#4BA3F4'],
     secondary: '#8E6D4E',
     secondaryLight: '#C9AF98',
     background: '#F8F7F5',
@@ -45,7 +45,7 @@ export const Colors = {
 };
 
 export const Gradients = {
-    primary: ['#F6A64B', '#F48C25'],
+    primary: ['#B3D8FD', '#4BA3F4'],
     dark: ['#FFFDFC', '#F3EDE7'],
     card: ['#FFFFFF', '#F4EEE8'],
     hero: ['rgba(255,255,255,0.2)', 'rgba(244,140,37,0.08)'],
