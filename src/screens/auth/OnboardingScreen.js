@@ -2,6 +2,7 @@
 //  Screen: Splash Logo → Phone → OTP
 //  No onboarding slides — just Swim.ai branding
 // ─────────────────────────────────────────────
+import { VideoView, useVideoPlayer } from 'expo-video';
 import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
@@ -42,6 +43,14 @@ const OnboardingScreen = ({ navigation }) => {
     const taglineOpacity = useRef(new Animated.Value(0)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const glowOpacity = useRef(new Animated.Value(0)).current;
+    const splashVideoPlayer = useVideoPlayer(
+        require('../../../assets/Wave_Video_Generation_With_Logo.mp4'),
+        (player) => {
+            player.loop = true;
+            player.muted = true;
+            player.play();
+        }
+    );
 
     useEffect(() => {
         if (step === 'splash') {
@@ -172,7 +181,7 @@ const OnboardingScreen = ({ navigation }) => {
                             />
                         </Animated.View>
 
-                        {/* Logo */}
+                        {/* Wave video instead of logo */}
                         <Animated.View style={[
                             styles.splashLogoWrap,
                             {
@@ -180,9 +189,12 @@ const OnboardingScreen = ({ navigation }) => {
                                 opacity: logoOpacity,
                             }
                         ]}>
-                            <Image
-                                source={require('../../../assets/logo.png')}
+                            <VideoView
+                                player={splashVideoPlayer}
                                 style={styles.splashLogo}
+                                contentFit="cover"
+                                nativeControls={false}
+                                allowsFullscreen={false}
                             />
                         </Animated.View>
 

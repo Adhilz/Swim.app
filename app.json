@@ -28,7 +28,8 @@
     },
     "plugins": [
       "expo-location",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-video"
     ]
   }
 }

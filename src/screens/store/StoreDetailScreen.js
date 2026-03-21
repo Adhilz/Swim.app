@@ -208,10 +208,10 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius['2xl'],
         flexDirection: 'row',
         paddingVertical: Spacing.base,
-        shadowColor: '#D6C9BE',
-        shadowOffset: { width: 8, height: 8 },
+        shadowColor: '#D8CCC0',
+        shadowOffset: { width: 6, height: 6 },
         shadowOpacity: 0.18,
-        shadowRadius: 18,
+        shadowRadius: 16,
         elevation: 8,
     },
     summaryItem: {
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
         marginRight: 8,
     },
     categoryPillActive: {
-        backgroundColor: '#FDF0E1',
+        backgroundColor: Colors.primaryLight,
     },
     categoryText: {
         ...Typography.labelMedium,

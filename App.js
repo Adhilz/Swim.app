@@ -13,7 +13,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <StatusBar style="light" backgroundColor="#0F0F1A" />
+        <StatusBar style="dark" backgroundColor="#FDF8F3" />
         <RootNavigator />
       </SafeAreaProvider>
     </GestureHandlerRootView>
